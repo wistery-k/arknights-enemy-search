@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>敵情報検索 | Rhodes Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__mark">R.I.</span>
+    <div class="topbar__titles">
+      <h1>敵情報検索</h1>
+      <p>ENEMY DATA TERMINAL</p>
+    </div>
+  </div>
+
+  <div class="topbar__search">
+    <input type="search" id="searchInput" placeholder="敵の名前で検索…" autocomplete="off">
+  </div>
+
+  <div class="topbar__count">
+    <span id="resultCount">-</span><span class="topbar__count-label">件表示中</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="filters" id="filters">
+
+    <div class="filters__group" data-group="factions">
+      <button class="filters__group-head" data-toggle="factions">
+        <span>勢力 / 地域</span>
+        <span class="filters__chevron">▾</span>
+      </button>
+      <div class="filters__group-body" id="factionOptions"></div>
+    </div>
+
+    <div class="filters__group" data-group="content">
+      <button class="filters__group-head" data-toggle="content">
+        <span>登場コンテンツ</span>
+        <span class="filters__chevron">▾</span>
+      </button>
+      <div class="filters__group-body" id="contentOptions"></div>
+    </div>
+
+    <div class="filters__group" data-group="race">
+      <button class="filters__group-head" data-toggle="race">
+        <span>種族</span>
+        <span class="filters__chevron">▾</span>
+      </button>
+      <div class="filters__group-body" id="raceOptions"></div>
+    </div>
+
+    <div class="filters__group" data-group="attr">
+      <button class="filters__group-head" data-toggle="attr">
+        <span>属性</span>
+        <span class="filters__chevron">▾</span>
+      </button>
+      <div class="filters__group-body" id="attrOptions"></div>
+    </div>
+
+    <button class="filters__reset" id="resetBtn">条件をすべて解除</button>
+  </aside>
+
+  <main class="results">
+    <div class="results__chips" id="activeChips"></div>
+    <div class="results__grid" id="resultsGrid"></div>
+    <div class="results__empty" id="emptyState" hidden>
+      <p>該当する敵が見つかりませんでした。</p>
+      <p>絞り込み条件を減らすか、別のキーワードを試してください。</p>
+    </div>
+  </main>
+
+</div>
+
+<div class="detail" id="detailPanel" hidden>
+  <div class="detail__scrim" id="detailScrim"></div>
+  <div class="detail__card" id="detailCard"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

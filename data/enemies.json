@@ -1,0 +1,239 @@
+{
+  "_meta": {
+    "note": "テスト用サンプルデータ。実データはArknightsGameData等から後日流し込み予定。",
+    "version": "0.1.0"
+  },
+  "enemies": [
+    {
+      "id": "e001",
+      "name": "近衛尖兵",
+      "nameEn": "Guard Vanguard",
+      "code": "b1",
+      "rank": "通常",
+      "race": "ヴィクトリア軍属",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["ヴィクトリア"],
+      "content": [
+        { "category": "メインテーマ", "name": "第3章 荒地に眠る" }
+      ],
+      "stats": { "hp": 850, "atk": 220, "def": 120, "res": 0 },
+      "description": "ヴィクトリア軍の標準的な尖兵。単騎での戦闘力は低いが数で押してくる。"
+    },
+    {
+      "id": "e002",
+      "name": "高機動戦闘員",
+      "nameEn": "Mobile Trooper",
+      "code": "b12",
+      "rank": "通常",
+      "race": "傭兵",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["クルビア"],
+      "content": [
+        { "category": "イベント", "name": "生息演算 -クルビア断章-" }
+      ],
+      "stats": { "hp": 1200, "atk": 310, "def": 90, "res": 10 },
+      "description": "移動速度が速く、後衛への奇襲を得意とするクルビア傭兵団の戦闘員。"
+    },
+    {
+      "id": "e003",
+      "name": "灼熱の術師",
+      "nameEn": "Blazing Caster",
+      "code": "c14",
+      "rank": "精鋭",
+      "race": "術師",
+      "motion": "地上",
+      "atkType": "法術",
+      "factions": ["炎国"],
+      "content": [
+        { "category": "メインテーマ", "name": "第9章 燃ゆる大地" },
+        { "category": "統合戦略", "name": "水月与深藍之樹" }
+      ],
+      "stats": { "hp": 2400, "atk": 520, "def": 60, "res": 30 },
+      "description": "炎国由来の高火力法術ユニット。範囲攻撃で後衛を焼き払う。"
+    },
+    {
+      "id": "e004",
+      "name": "深海教団の巫女",
+      "nameEn": "Deep Sea Priestess",
+      "code": "d07",
+      "rank": "領袖",
+      "race": "巫女",
+      "motion": "地上",
+      "atkType": "法術",
+      "factions": ["ヴィクトリア", "深海教団"],
+      "content": [
+        { "category": "イベント", "name": "水月与深藍之樹" },
+        { "category": "特殊モード", "name": "アビサルハンター" }
+      ],
+      "stats": { "hp": 18000, "atk": 780, "def": 200, "res": 40 },
+      "description": "複数のギミックを操るボス級エネミー。フィールド上の水位を操作する。"
+    },
+    {
+      "id": "e005",
+      "name": "サルカズ双剣士",
+      "nameEn": "Sarkaz Dual Blader",
+      "code": "b23",
+      "rank": "精鋭",
+      "race": "サルカズ",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["サルカズ"],
+      "content": [
+        { "category": "メインテーマ", "name": "サルカズの新章" },
+        { "category": "統合戦略", "name": "混沌演武" }
+      ],
+      "stats": { "hp": 3100, "atk": 610, "def": 140, "res": 0 },
+      "description": "高速の連続攻撃を行うサルカズ傭兵。回避性能が高い。"
+    },
+    {
+      "id": "e006",
+      "name": "重装輸送機構",
+      "nameEn": "Heavy Transport Unit",
+      "code": "e02",
+      "rank": "通常",
+      "race": "機械",
+      "motion": "空中",
+      "atkType": "物理",
+      "factions": ["ラテラーノ"],
+      "content": [
+        { "category": "イベント", "name": "聖歌ラテラーノ" }
+      ],
+      "stats": { "hp": 5200, "atk": 0, "def": 300, "res": 0 },
+      "description": "攻撃能力を持たない空中輸送ユニット。破壊されると増援を落とす。"
+    },
+    {
+      "id": "e007",
+      "name": "凍砕の狩人",
+      "nameEn": "Frostbreak Hunter",
+      "code": "f19",
+      "rank": "精鋭",
+      "race": "猟兵",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["イベリア"],
+      "content": [
+        { "category": "統合戦略", "name": "水月与深藍之樹" },
+        { "category": "特殊モード", "name": "アビサルハンター" }
+      ],
+      "stats": { "hp": 4600, "atk": 690, "def": 180, "res": 10 },
+      "description": "氷結攻撃でオペレーターの行動を阻害する狩人系エネミー。"
+    },
+    {
+      "id": "e008",
+      "name": "高塔監視官",
+      "nameEn": "Tower Overseer",
+      "code": "g05",
+      "rank": "領袖",
+      "race": "高塔",
+      "motion": "地上",
+      "atkType": "法術",
+      "factions": ["高塔"],
+      "content": [
+        { "category": "メインテーマ", "name": "第11章 空を裂く者" },
+        { "category": "特殊モード", "name": "危機契約" }
+      ],
+      "stats": { "hp": 22000, "atk": 900, "def": 260, "res": 50 },
+      "description": "広範囲の法術結界を展開するボス。結界内はオペレーターの射程が減少する。"
+    },
+    {
+      "id": "e009",
+      "name": "クルビア密偵",
+      "nameEn": "Kjerag Infiltrator",
+      "code": "b31",
+      "rank": "通常",
+      "race": "傭兵",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["クルビア"],
+      "content": [
+        { "category": "メインテーマ", "name": "第7章 感傷マラソン" }
+      ],
+      "stats": { "hp": 980, "atk": 260, "def": 70, "res": 0 },
+      "description": "隠密行動でオペレーターの警戒網をすり抜けるクルビアの密偵。"
+    },
+    {
+      "id": "e010",
+      "name": "炎国重装親衛",
+      "nameEn": "Sui Heavy Guard",
+      "code": "c22",
+      "rank": "精鋭",
+      "race": "親衛隊",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["炎国"],
+      "content": [
+        { "category": "統合戦略", "name": "混沌演武" }
+      ],
+      "stats": { "hp": 8800, "atk": 540, "def": 420, "res": 0 },
+      "description": "高い防御力を誇る炎国の重装兵。正面突破には不向き。"
+    },
+    {
+      "id": "e011",
+      "name": "深海の呼び声",
+      "nameEn": "Deep Sea Caller",
+      "code": "d15",
+      "rank": "精鋭",
+      "race": "深海生物",
+      "motion": "地上",
+      "atkType": "法術",
+      "factions": ["深海教団"],
+      "content": [
+        { "category": "イベント", "name": "水月与深藍之樹" }
+      ],
+      "stats": { "hp": 3600, "atk": 470, "def": 40, "res": 60 },
+      "description": "高い法術抵抗を持ち、味方を回復させる支援型エネミー。"
+    },
+    {
+      "id": "e012",
+      "name": "ラテラーノ審問官",
+      "nameEn": "Laterano Inquisitor",
+      "code": "e18",
+      "rank": "領袖",
+      "race": "サンクタ",
+      "motion": "地上",
+      "atkType": "法術",
+      "factions": ["ラテラーノ"],
+      "content": [
+        { "category": "メインテーマ", "name": "第12章 聖三十字" },
+        { "category": "イベント", "name": "聖歌ラテラーノ" }
+      ],
+      "stats": { "hp": 26000, "atk": 850, "def": 300, "res": 40 },
+      "description": "裁きの光でフィールドを浄化するラテラーノのボス級エネミー。"
+    },
+    {
+      "id": "e013",
+      "name": "危機契約 -妨害機体-",
+      "nameEn": "CC Jammer Unit",
+      "code": "cc03",
+      "rank": "精鋭",
+      "race": "機械",
+      "motion": "空中",
+      "atkType": "法術",
+      "factions": ["ラテラーノ"],
+      "content": [
+        { "category": "特殊モード", "name": "危機契約" }
+      ],
+      "stats": { "hp": 4100, "atk": 380, "def": 150, "res": 20 },
+      "description": "危機契約シーズン限定の妨害専門ユニット。撃破するとデバフが解除される。"
+    },
+    {
+      "id": "e014",
+      "name": "サルカズ幻影兵",
+      "nameEn": "Sarkaz Phantom",
+      "code": "b40",
+      "rank": "通常",
+      "race": "サルカズ",
+      "motion": "地上",
+      "atkType": "物理",
+      "factions": ["サルカズ"],
+      "content": [
+        { "category": "統合戦略", "name": "混沌演武" },
+        { "category": "特殊モード", "name": "アビサルハンター" }
+      ],
+      "stats": { "hp": 1500, "atk": 340, "def": 100, "res": 0 },
+      "description": "一定時間姿を消すサルカズの幻影兵。"
+    }
+  ]
+}
