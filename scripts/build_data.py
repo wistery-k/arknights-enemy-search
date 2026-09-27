@@ -251,6 +251,35 @@ def build_stats(db_entry):
 
 
 # ---------------------------------------------------------------
+# 地域
+# ---------------------------------------------------------------
+
+# これ以上の地域にまたがって登場する敵は、各地に出てくる汎用的な敵とみなして地域なしにする
+GENERIC_REGION_COUNT = 4
+
+
+def regions_from_contents(apps, content_list, region_by_content):
+    """登場するメインテーマ/イベントの地域を合わせる。無ければ統合戦略・特殊モードの地域を使う"""
+    def collect(categories):
+        counts = defaultdict(int)
+        for idx, _codes in apps:
+            c = content_list[idx]
+            if c["category"] in categories:
+                for r in region_by_content.get(c["name"], []):
+                    counts[r] += 1
+        if len(counts) >= GENERIC_REGION_COUNT:
+            return None  # 汎用的な敵
+        return sorted(counts, key=lambda r: -counts[r])
+
+    primary = collect({"メインテーマ", "イベント"})
+    if primary is None:
+        return []
+    if primary:
+        return primary
+    return collect({"統合戦略", "特殊モード"}) or []
+
+
+# ---------------------------------------------------------------
 # main
 # ---------------------------------------------------------------
 
@@ -320,18 +349,10 @@ def main():
             apps.append([content_index[ckey], codes])
         apps.sort(key=lambda a: a[0])
 
-        # 地域: 個別指定 > 初登場コンテンツの地域
+        # 地域: 個別指定 > 登場コンテンツの地域
         regions = region_by_enemy.get(eid)
         if regions is None:
-            regions = []
-            if apps:
-                debut = min(
-                    apps,
-                    key=lambda a: (content_list[a[0]]["category"] != "メインテーマ"
-                                   and content_list[a[0]]["category"] != "イベント",
-                                   content_list[a[0]]["order"]),
-                )
-                regions = region_by_content.get(content_list[debut[0]]["name"], [])
+            regions = regions_from_contents(apps, content_list, region_by_content)
 
         enemies.append({
             "id": eid,

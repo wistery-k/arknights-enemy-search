@@ -294,7 +294,7 @@ function card(e) {
       </div>
       <span class="rank-badge rank-badge--${rankClass(e.rank)}">${esc(e.rank)}</span>
     </div>
-    <div class="card__meta">${esc([e.races.join("・"), e.motion, e.attackRange, e.damage.join("・")].filter(Boolean).join(" / "))}</div>
+    <div class="card__meta">${esc([...new Set([e.races.join("・"), e.motion, e.attackRange, e.damage.join("・")].filter(Boolean))].join(" / "))}</div>
     <dl class="card__stats">
       <div><dt>HP</dt><dd>${num(s.hp)}</dd></div>
       <div><dt>攻撃</dt><dd>${num(s.atk)}</dd></div>
@@ -335,7 +335,7 @@ function openDetail(e) {
     <h2 class="detail__name">${esc(e.name)}</h2>
     <div class="detail__tags">
       <span class="rank-badge rank-badge--${rankClass(e.rank)}">${esc(e.rank)}</span>
-      ${[...e.races, e.motion, e.attackRange, ...e.damage, ...e.regions].filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join("")}
+      ${[...new Set([...e.races, e.motion, e.attackRange, ...e.damage, ...e.regions].filter(Boolean))].map(t => `<span class="tag">${esc(t)}</span>`).join("")}
     </div>
 
     ${e.abilities.length ? `<h3 class="detail__h">能力</h3><ul class="detail__abilities">${e.abilities.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
