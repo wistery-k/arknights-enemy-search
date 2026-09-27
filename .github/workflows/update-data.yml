@@ -1,0 +1,55 @@
+name: Update enemy data
+
+# 毎週月曜 6:00 (JST) と手動実行で、最新のゲームデータから data/enemies.json を作り直す
+on:
+  schedule:
+    - cron: "0 21 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch game data (jp only)
+        run: |
+          git clone --filter=blob:none --no-checkout --depth 1 \
+            https://github.com/ArknightsAssets/ArknightsGamedata gamedata-src
+          cd gamedata-src
+          git sparse-checkout init --no-cone
+          cat > .git/info/sparse-checkout <<'EOF'
+          /jp/gamedata/excel/enemy_handbook_table.json
+          /jp/gamedata/excel/stage_table.json
+          /jp/gamedata/excel/zone_table.json
+          /jp/gamedata/excel/activity_table.json
+          /jp/gamedata/excel/retro_table.json
+          /jp/gamedata/excel/roguelike_topic_table.json
+          /jp/gamedata/excel/climb_tower_table.json
+          /jp/gamedata/excel/sandbox_perm_table.json
+          /jp/gamedata/excel/data_version.txt
+          /jp/gamedata/levels/
+          EOF
+          git checkout -q HEAD
+
+      - name: Build data/enemies.json
+        run: python3 scripts/build_data.py gamedata-src/jp/gamedata data/enemies.json
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- data/enemies.json; then
+            echo "変更なし"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/enemies.json
+          git commit -m "Update enemy data"
+          git push

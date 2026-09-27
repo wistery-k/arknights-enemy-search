@@ -1,68 +1,56 @@
-# 敵情報検索ツール（テスト版）
+# 敵情報検索ツール
 
-アークナイツの敵ユニットを、勢力/地域・登場コンテンツ・種族・属性で絞り込んで探せるツールです。
-読み込み時以外はローカルで完結し、GitHub Pages でそのままホスティングできます。
+アークナイツ（日本版）の敵を、登場コンテンツ・種族・ランク・攻撃属性などで絞り込んで探せるツールです。
+データの読み込み以外はブラウザ内で完結し、GitHub Pages でそのままホスティングできます。
 
 ## ファイル構成
 
 ```
-index.html          画面本体
-style.css           デザイン
-script.js           検索・絞り込みロジック
-data/enemies.json   敵データ（現在はテスト用サンプル14体）
+index.html                         画面
+style.css                          デザイン
+script.js                          検索・絞り込み
+data/enemies.json                  敵データ（scripts/build_data.py で生成。手で編集しない）
+data/regions.json                  勢力/地域の手動対応表
+scripts/build_data.py              ゲームデータ → enemies.json の変換スクリプト
+.github/workflows/update-data.yml  週1回データを自動更新する GitHub Actions
+```
+
+## データについて
+
+- 元データは [ArknightsAssets/ArknightsGamedata](https://github.com/ArknightsAssets/ArknightsGamedata) の `jp/gamedata` です。
+- 敵図鑑に載っている敵（非表示のものを除く）を対象に、名前・ランク・種族・能力・説明とレベルごとのステータスを取り込みます。
+- 登場コンテンツは各ステージの敵編成（`levels/`）から自動で集計しています。
+  - メインテーマ: 章ごと
+  - イベント: サイドストーリー・オムニバス（常設化されたものを含む。復刻は初回開催と同じイベントとして扱う）
+  - 統合戦略: テーマごと
+  - 特殊モード: 保全駐在・殲滅作戦・危機契約・生息演算、および導灯の試練・協心競技・鋒矢突破・堅守協定などのイベント内モード
+  - その他: 資源収集・物資調達、オペレーター密録
+- 勢力/地域はゲームデータに存在しないため `data/regions.json` の手動対応表から付与します（空の間は画面に表示されません）。
+  - `byEnemy`: 敵ID → 地域の配列（最優先）
+  - `byContent`: イベント名やメインテーマの章名 → 地域の配列。個別指定のない敵は、初登場したメインテーマ/イベントの地域を引き継ぎます。
+
+## データの更新
+
+GitHub Actions が毎週月曜の朝に最新データで `data/enemies.json` を作り直し、変更があればコミットします。
+リポジトリの Actions タブから「Update enemy data」を手動実行することもできます。
+
+手元で作る場合:
+
+```bash
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ArknightsAssets/ArknightsGamedata src
+cd src && git sparse-checkout set --no-cone /jp/gamedata/excel/ /jp/gamedata/levels/ && git checkout && cd ..
+python3 scripts/build_data.py src/jp/gamedata data/enemies.json
 ```
 
 ## ローカルで確認する
 
-ブラウザで `index.html` を直接開くと `fetch("data/enemies.json")` がブロックされることがあるため、
-簡易サーバー経由で開いてください。
+`fetch` を使うため、ファイルを直接開くのではなく簡易サーバー経由で開いてください。
 
 ```bash
-cd arknights-enemy-search
 python3 -m http.server 8000
 # http://localhost:8000 を開く
 ```
 
-## GitHub Pages への公開
+## GitHub Pages
 
-1. このフォルダの中身をリポジトリ直下（または `/docs` フォルダ）にそのまま置く
-2. リポジトリの Settings → Pages で公開元ブランチ/フォルダを指定
-3. 数分後に `https://<ユーザー名>.github.io/<リポジトリ名>/` で公開される
-
-## データの構造（`data/enemies.json`）
-
-```jsonc
-{
-  "id": "e001",
-  "name": "近衛尖兵",          // 表示名
-  "nameEn": "Guard Vanguard",  // 英語名（検索対象）
-  "code": "b1",                 // 図鑑コードなど任意の識別子
-  "rank": "通常",               // 通常 / 精鋭 / 領袖
-  "race": "ヴィクトリア軍属",    // 種族
-  "motion": "地上",             // 地上 / 空中
-  "atkType": "物理",            // 物理 / 法術
-  "factions": ["ヴィクトリア"],  // 勢力・地域（複数可）
-  "content": [                  // 登場コンテンツ（複数可）
-    { "category": "メインテーマ", "name": "第3章 荒地に眠る" }
-  ],
-  "stats": { "hp": 850, "atk": 220, "def": 120, "res": 0 },
-  "description": "説明文"
-}
-```
-
-- `factions` と `content` は配列なので、1体が複数の勢力・複数のコンテンツに紐づいても対応できます。
-- `content.category` は現在 `メインテーマ / イベント / 統合戦略 / 特殊モード` の4種類を想定していますが、
-  文字列なのでカテゴリを増やしても画面側の変更なしに反映されます（左サイドバーの小見出しとして自動表示）。
-- フィルタの選択肢と件数は `enemies.json` の中身から自動生成しているため、データを追加・編集するだけで
-  UI側のコード変更は不要です。
-
-## 今後の拡張の方向性
-
-- `data/enemies.json` を実データに差し替える（`ArknightsGameData` 等から敵の基礎ステータスを取り込み、
-  登場コンテンツの対応表は別途ステージ編成データの解析、または手動整備で補う想定）
-- 画像（敵アイコン）を `assets/` に置いて `enemy.icon` フィールドで参照する
-- ソート機能（HP順・登場順など）
-- URLクエリへのフィルタ状態の反映（結果を共有できるように）
-
-このテスト版は「検索UIが目的の敵を見つけやすいか」を確認するためのものです。
-データを差し替えても壊れないよう、フィルタまわりは `enemies.json` の内容から動的に構築する設計にしています。
+Settings → Pages で Source を「Deploy from a branch」、Branch を `main` / `/ (root)` にすると公開されます。

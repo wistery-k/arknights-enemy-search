@@ -1,0 +1,9 @@
+{
+  "_説明": "勢力/地域の手動対応表。ゲームデータには地域情報がないため、ここに書いた内容を scripts/build_data.py が enemies.json に反映する。byEnemy（敵ID単位）が優先され、無い場合はその敵が初めて登場したメインテーマ/イベントの byContent を使う。",
+  "_例": {
+    "byContent": { "イベント名またはメインテーマの章名": ["ヴィクトリア"] },
+    "byEnemy": { "enemy_1007_slime": [] }
+  },
+  "byContent": {},
+  "byEnemy": {}
+}

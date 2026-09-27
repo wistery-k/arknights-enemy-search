@@ -21,56 +21,40 @@
   </div>
 
   <div class="topbar__search">
-    <input type="search" id="searchInput" placeholder="敵の名前で検索…" autocomplete="off">
+    <input type="search" id="searchInput" placeholder="名前・図鑑番号・能力で検索" autocomplete="off">
   </div>
 
   <div class="topbar__count">
-    <span id="resultCount">-</span><span class="topbar__count-label">件表示中</span>
+    <span id="resultCount">-</span><span class="topbar__count-label">体</span>
   </div>
 </header>
 
 <div class="layout">
 
   <aside class="filters" id="filters">
-
-    <div class="filters__group" data-group="factions">
-      <button class="filters__group-head" data-toggle="factions">
-        <span>勢力 / 地域</span>
-        <span class="filters__chevron">▾</span>
-      </button>
-      <div class="filters__group-body" id="factionOptions"></div>
-    </div>
-
-    <div class="filters__group" data-group="content">
-      <button class="filters__group-head" data-toggle="content">
-        <span>登場コンテンツ</span>
-        <span class="filters__chevron">▾</span>
-      </button>
-      <div class="filters__group-body" id="contentOptions"></div>
-    </div>
-
-    <div class="filters__group" data-group="race">
-      <button class="filters__group-head" data-toggle="race">
-        <span>種族</span>
-        <span class="filters__chevron">▾</span>
-      </button>
-      <div class="filters__group-body" id="raceOptions"></div>
-    </div>
-
-    <div class="filters__group" data-group="attr">
-      <button class="filters__group-head" data-toggle="attr">
-        <span>属性</span>
-        <span class="filters__chevron">▾</span>
-      </button>
-      <div class="filters__group-body" id="attrOptions"></div>
-    </div>
-
+    <button class="filters__mobile-toggle" id="mobileToggle" aria-expanded="false">絞り込み条件を開く</button>
+    <div class="filters__inner" id="filterGroups"></div>
     <button class="filters__reset" id="resetBtn">条件をすべて解除</button>
+    <p class="filters__source" id="dataSource"></p>
   </aside>
 
   <main class="results">
-    <div class="results__chips" id="activeChips"></div>
+    <div class="results__toolbar">
+      <div class="results__chips" id="activeChips"></div>
+      <label class="results__sort">
+        <span>並び順</span>
+        <select id="sortSelect">
+          <option value="index">図鑑順</option>
+          <option value="hp">HPが高い順</option>
+          <option value="atk">攻撃力が高い順</option>
+          <option value="def">防御力が高い順</option>
+          <option value="res">術耐性が高い順</option>
+          <option value="appear">登場コンテンツが多い順</option>
+        </select>
+      </label>
+    </div>
     <div class="results__grid" id="resultsGrid"></div>
+    <button class="results__more" id="moreBtn" hidden>さらに表示</button>
     <div class="results__empty" id="emptyState" hidden>
       <p>該当する敵が見つかりませんでした。</p>
       <p>絞り込み条件を減らすか、別のキーワードを試してください。</p>
@@ -81,7 +65,7 @@
 
 <div class="detail" id="detailPanel" hidden>
   <div class="detail__scrim" id="detailScrim"></div>
-  <div class="detail__card" id="detailCard"></div>
+  <div class="detail__card" id="detailCard" role="dialog" aria-modal="true"></div>
 </div>
 
 <script src="script.js"></script>
