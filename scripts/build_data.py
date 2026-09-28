@@ -129,6 +129,17 @@ MAIN_RELEASE_JP = {
 }
 
 
+KANJI_DIGITS = "〇一二三四五六七八九"
+
+
+def chapter_kanji(n: int) -> str:
+    """15 -> 十五（章番号の表記用。99まで）"""
+    if n < 10:
+        return "序" if n == 0 else KANJI_DIGITS[n]
+    tens, ones = divmod(n, 10)
+    return ("" if tens == 1 else KANJI_DIGITS[tens]) + "十" + (KANJI_DIGITS[ones] if ones else "")
+
+
 def main_release_ts(chapter: int, story_review):
     if chapter in MAIN_RELEASE_JP:
         return int(MAIN_RELEASE_JP[chapter].timestamp())
@@ -151,6 +162,12 @@ class Tables:
         self.zone_to_act = act["zoneToActivity"]
         self.retro = load(base, "excel/retro_table.json")
         self.story_review = load(base, "excel/story_review_table.json")
+        # ストーリー記録の main_15 などのうち、通常の章（MAINLINE ゾーン）以外はイベント形式のメインテーマ
+        mainline_names = {z["zoneNameSecond"] for z in self.zones.values() if z.get("type") == "MAINLINE"}
+        for sid, entry in self.story_review.items():
+            m = re.fullmatch(r"main_(\d+)", sid)
+            if m and entry.get("name") and entry["name"] not in mainline_names:
+                MAIN_STORY_CHAPTERS[entry["name"]] = int(m.group(1))
         rogue = load(base, "excel/roguelike_topic_table.json")
         self.rogue_topics = rogue["topics"]
         self.rogue_details = rogue["details"]
@@ -282,7 +299,8 @@ def build_level_map(t: Tables):
         if not info:
             continue
         date = t.event_first.get(clean_event_name(info["name"])) or valid_ts(info["startTime"])
-        ckey = contents.add("イベント", clean_event_name(info["name"]), date or 10**10)
+        name = clean_event_name(info["name"])
+        ckey = add_main_story(contents, name) if name in MAIN_STORY_CHAPTERS else contents.add("イベント", name, date or 10**10)
         put(st.get("levelId"), ckey, st.get("code") or sid, date)
 
     # 統合戦略（ステージごとの差し替えマップ levelReplaceIds も含める）
@@ -313,10 +331,21 @@ def build_level_map(t: Tables):
     return contents, level_map
 
 
+MAIN_STORY_CHAPTERS = {}  # イベント形式で実装されたメインテーマ（解離結合など）: 名前 -> 章番号
+
+
 def add_activity(contents: Contents, info):
     name = clean_event_name(info["name"])
+    if name in MAIN_STORY_CHAPTERS:
+        return add_main_story(contents, name)
     category = "特殊モード" if info.get("type", "").startswith(SPECIAL_ACT_TYPES) else "イベント"
     return contents.add(category, name, info["startTime"])
+
+
+def add_main_story(contents: Contents, name):
+    """イベント形式のメインテーマを「第十五章 解離結合」のようにメインテーマとして登録する"""
+    n = MAIN_STORY_CHAPTERS[name]
+    return contents.add("メインテーマ", f"第{chapter_kanji(n)}章 {name}", n)
 
 
 def classify_unmapped(key: str, contents: Contents, t: Tables):
@@ -420,11 +449,18 @@ def find_debut(dated_apps, content_list, region_by_content):
         return None, None, [], None
     ordered = sorted(dated_apps, key=lambda a: appearance_key(a, content_list))
     debut, debut_date = ordered[0]
+    if content_list[debut]["category"] in STORY_CATEGORIES:
+        # メインテーマ・イベントが初登場なら、その地域だけを使う（未設定なら地域なし）
+        regions = region_by_content.get(content_list[debut]["name"], [])
+        return debut, debut_date, list(regions), (debut if regions else None)
     for idx, _date in ordered:
         regions = region_by_content.get(content_list[idx]["name"])
         if regions:
             return debut, debut_date, list(regions), idx
     return debut, debut_date, [], None
+
+
+STORY_CATEGORIES = {"メインテーマ", "イベント"}
 
 
 # 常設で後から追加ステージがあり、ステージごとの追加日がデータに無いカテゴリ。
