@@ -305,13 +305,7 @@ button, input, select { font-family: inherit; }
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
-
-.tile__more { color: var(--text-faint); margin-left: 6px; }
 
 .landing__all {
   margin-top: 18px;

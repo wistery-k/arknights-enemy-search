@@ -197,7 +197,11 @@ function isLanding() {
 
 // ---------- 最初の画面（地域のタイル） ----------
 
-const TILE_SOURCES = 5;
+// タイル用の短い表示名。メインテーマは「第九章」のように章番号だけにする
+function tileLabel(i) {
+  const c = state.data.contents[i];
+  return c.category === "メインテーマ" ? c.name.split(" ")[0] : contentLabel(i);
+}
 
 // コンテンツの表示名（生息演算などはカテゴリ名を付ける）
 function contentLabel(i) {
@@ -219,18 +223,15 @@ function renderLanding() {
   }
   const frag = document.createDocumentFragment();
   for (const [region, list] of [...byRegion].sort((a, b) => b[1].length - a[1].length)) {
-    // この地域の元になった章・イベントを、敵の数が多い順に最大5件
-    const sources = new Map();
-    for (const e of list) if (e.regionFrom != null) sources.set(e.regionFrom, (sources.get(e.regionFrom) || 0) + 1);
-    const ranked = [...sources].sort((a, b) => b[1] - a[1]);
-    const names = ranked.slice(0, TILE_SOURCES).map(([i]) => contentLabel(i));
-    const more = ranked.length > TILE_SOURCES ? `<span class="tile__more">ほか${ranked.length - TILE_SOURCES}件</span>` : "";
+    // この地域の元になった章・イベントをすべて、メインテーマ → イベント → … の順（各カテゴリ内は開催順）で
+    const sources = [...new Set(list.map(e => e.regionFrom).filter(i => i != null))].sort((a, b) => a - b);
+    const names = sources.map(tileLabel);
     const tile = document.createElement("button");
     tile.type = "button";
     tile.className = "tile";
     tile.innerHTML = `
       <span class="tile__head"><span class="tile__name">${esc(region)}</span><span class="tile__count">${list.length}体</span></span>
-      <span class="tile__picks">${names.map(esc).join("、")}${more}</span>`;
+      <span class="tile__picks">${names.map(esc).join("、")}</span>`;
     tile.addEventListener("click", () => {
       state.selected.region.add(region);
       state.collapsed.delete("group:region");
