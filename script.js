@@ -21,8 +21,7 @@ const state = {
   data: null,
   query: "",
   sort: "new",
-  browseAll: false,
-  includeNeutral: false,        // 中立ユニット（民間人など）を結果に含めるか             // 条件なしで一覧を見るとき true（false なら地域のタイルを出す）
+  browseAll: false,             // 条件なしで一覧を見るとき true（false なら地域のタイルを出す）
   selected: Object.fromEntries(GROUPS.map(g => [g.key, new Set()])),
   collapsed: new Set(),         // 閉じているグループ / カテゴリ
   contentQuery: "",
@@ -137,7 +136,6 @@ function matchesGroup(e, key) {
 }
 
 function matches(e, exceptKey) {
-  if (e.neutral && !state.includeNeutral) return false;
   if (!matchesQuery(e)) return false;
   return GROUPS.every(g => g.key === exceptKey || matchesGroup(e, g.key));
 }
@@ -212,7 +210,7 @@ function contentLabel(i) {
 }
 
 function renderLanding() {
-  const pool = state.data.enemies.filter(e => state.includeNeutral || !e.neutral);
+  const pool = state.data.enemies;
   els.count.textContent = pool.length;
   els.empty.hidden = true;
   els.more.hidden = true;
@@ -479,7 +477,6 @@ function card(e) {
       <div><dt>攻撃</dt><dd>${num(s.atk)}</dd></div>
       <div><dt>防御</dt><dd>${num(s.def)}</dd></div>
       <div><dt>術耐性</dt><dd>${num(s.res)}</dd></div>
-      <div><dt>射程</dt><dd>${rangeText(s.range)}</dd></div>
     </dl>`;
   el.addEventListener("click", () => openDetail(e));
   return el;
@@ -554,7 +551,6 @@ function bindEvents() {
     timer = setTimeout(() => { state.query = els.search.value.trim().toLowerCase(); update(); }, 120);
   });
   els.sort.addEventListener("change", () => { state.sort = els.sort.value; update(); });
-  $("neutralToggle").addEventListener("change", ev => { state.includeNeutral = ev.target.checked; update(); });
   els.browseAll.addEventListener("click", () => { state.browseAll = true; update(); window.scrollTo({ top: 0 }); });
   els.more.addEventListener("click", () => { state.shown += PAGE_SIZE * 2; renderResults(); });
   els.reset.addEventListener("click", goHome);
