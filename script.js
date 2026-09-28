@@ -472,10 +472,11 @@ function card(e) {
     </div>
     <div class="card__meta">${esc([...new Set([e.races.join("・"), e.motion, e.attackRange, e.damage.join("・")].filter(Boolean))].join(" / "))}</div>
     <dl class="card__stats">
-      <div><dt>HP</dt><dd>${num(s.hp)}</dd></div>
+      <div><dt>HP</dt><dd>${num(s.hp, true)}</dd></div>
       <div><dt>攻撃</dt><dd>${num(s.atk)}</dd></div>
       <div><dt>防御</dt><dd>${num(s.def)}</dd></div>
-      <div><dt>術耐</dt><dd>${num(s.res)}</dd></div>
+      <div><dt>術耐性</dt><dd>${num(s.res)}</dd></div>
+      <div><dt>射程</dt><dd>${rangeText(s.range)}</dd></div>
     </dl>`;
   el.addEventListener("click", () => openDetail(e));
   return el;
@@ -487,11 +488,11 @@ function openDetail(e) {
   const contents = state.data.contents;
   const statRows = [
     ["HP", "hp"], ["攻撃力", "atk"], ["防御力", "def"], ["術耐性", "res"],
-    ["攻撃間隔", "interval"], ["移動速度", "speed"], ["重量", "weight"], ["攻撃範囲", "range"], ["耐久値減少", "lifeReduce"],
+    ["攻撃間隔", "interval"], ["移動速度", "speed"], ["重量", "weight"], ["射程", "range"], ["耐久値減少", "lifeReduce"],
   ];
   const lvHead = e.stats.map((_, i) => `<th>Lv${i}</th>`).join("");
   const lvBody = statRows.map(([label, k]) =>
-    `<tr><th>${label}</th>${e.stats.map(s => `<td>${num(s[k])}</td>`).join("")}</tr>`).join("");
+    `<tr><th>${label}</th>${e.stats.map(s => `<td>${k === "range" ? rangeText(s[k]) : num(s[k], k === "hp")}</td>`).join("")}</tr>`).join("");
 
   const byCat = {};
   for (const [idx, codes] of e.appear) (byCat[contents[idx].category] ??= []).push([contents[idx].label || contents[idx].name, codes, idx]);
@@ -582,7 +583,14 @@ function goHome() {
 
 function toggleSet(set, v) { set.has(v) ? set.delete(v) : set.add(v); }
 function rankClass(rank) { return { "通常": "normal", "エリート": "elite", "ボス": "boss" }[rank] || "normal"; }
-function num(n) { return n === undefined || n === null ? "-" : Number(n).toLocaleString(); }
+// 射程。-1 などの負の値は範囲の設定が無いので「-」
+function rangeText(r) { return typeof r === "number" && r < 0 ? "-" : num(r); }
+
+// 数値の表示。カンマ区切りはHPだけ
+function num(n, comma = false) {
+  if (n === undefined || n === null) return "-";
+  return comma ? Number(n).toLocaleString() : String(n);
+}
 function esc(str) {
   return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
