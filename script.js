@@ -6,9 +6,12 @@
 
 const PAGE_SIZE = 60;
 
+// 地域が設定されていない敵をまとめる値（タイルと絞り込みの選択肢に出す）
+const NO_REGION = "地域未設定";
+
 // 絞り込みグループの定義。values(enemy) がその敵の持つ値の配列を返す。
 const GROUPS = [
-  { key: "region",  title: "勢力 / 地域", values: e => e.regions },
+  { key: "region",  title: "勢力 / 地域", values: e => e.regions.length ? e.regions : [NO_REGION] },
   { key: "content", title: "初登場コンテンツ", values: e => e.debut != null ? [e.debut] : [] },
   { key: "race",    title: "種族", values: e => e.races.length ? e.races : ["種族なし"] },
   { key: "rank",    title: "ランク", parent: "属性", values: e => [e.rank] },
@@ -168,7 +171,8 @@ function allValues(key) {
   } else if (key === "content") {
     vals.sort((a, b) => a - b); // 生成時にカテゴリ順・開催順に並べてある
   } else {
-    vals.sort((a, b) => (a === "種族なし") - (b === "種族なし") || counts.get(b) - counts.get(a));
+    const last = v => v === "種族なし" || v === NO_REGION;
+    vals.sort((a, b) => last(a) - last(b) || counts.get(b) - counts.get(a));
   }
   return vals;
 }
@@ -217,19 +221,22 @@ function renderLanding() {
 
   const byRegion = new Map();
   for (const e of pool) {
-    for (const r of e.regions) {
+    for (const r of e._values.region) {
       if (!byRegion.has(r)) byRegion.set(r, []);
       byRegion.get(r).push(e);
     }
   }
   const frag = document.createDocumentFragment();
-  for (const [region, list] of [...byRegion].sort((a, b) => b[1].length - a[1].length)) {
-    // この地域の元になった章・イベントをすべて、メインテーマ → イベント → … の順（各カテゴリ内は開催順）で
-    const sources = [...new Set(list.map(e => e.regionFrom).filter(i => i != null))].sort((a, b) => a - b);
+  const tiles = [...byRegion].sort((a, b) => (a[0] === NO_REGION) - (b[0] === NO_REGION) || b[1].length - a[1].length);
+  for (const [region, list] of tiles) {
+    // この地域の元になった章・イベントをすべて、メインテーマ → イベント → … の順（各カテゴリ内は開催順）で。
+    // 地域未設定のタイルは、その敵たちの初登場コンテンツを並べる
+    const from = e => region === NO_REGION ? e.debut : e.regionFrom;
+    const sources = [...new Set(list.map(from).filter(i => i != null))].sort((a, b) => a - b);
     const names = sources.map(tileLabel);
     const tile = document.createElement("button");
     tile.type = "button";
-    tile.className = "tile";
+    tile.className = "tile" + (region === NO_REGION ? " tile--none" : "");
     tile.innerHTML = `
       <span class="tile__head"><span class="tile__name">${esc(region)}</span><span class="tile__count">${list.length}体</span></span>
       <span class="tile__picks">${names.map(esc).join("、")}</span>`;
