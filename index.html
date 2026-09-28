@@ -43,11 +43,18 @@
       <span>新しい版が公開されています。</span>
       <button type="button" id="reloadBtn">再読み込みして反映</button>
     </div>
-    <div class="results__toolbar">
+    <section class="landing" id="landing" hidden>
+      <h2 class="landing__title">地域から探す</h2>
+      <p class="landing__hint">敵が初登場した章やイベントの地域で絞り込みます。「初登場コンテンツ」の絞り込みや検索欄からも探せます。</p>
+      <div class="landing__grid" id="landingGrid"></div>
+      <button type="button" class="landing__all" id="browseAllBtn">すべての敵を新しい順に見る</button>
+    </section>
+    <div class="results__toolbar" id="resultsToolbar">
       <div class="results__chips" id="activeChips"></div>
       <label class="results__sort">
         <span>並び順</span>
         <select id="sortSelect">
+          <option value="new">初登場が新しい順</option>
           <option value="index">図鑑順</option>
           <option value="hp">HPが高い順</option>
           <option value="atk">攻撃力が高い順</option>

@@ -20,7 +20,8 @@ const GROUPS = [
 const state = {
   data: null,
   query: "",
-  sort: "index",
+  sort: "new",
+  browseAll: false,             // 条件なしで一覧を見るとき true（false なら地域のタイルを出す）
   selected: Object.fromEntries(GROUPS.map(g => [g.key, new Set()])),
   collapsed: new Set(),         // 閉じているグループ / カテゴリ
   contentQuery: "",
@@ -33,6 +34,7 @@ const els = {
   search: $("searchInput"), count: $("resultCount"), groups: $("filterGroups"),
   grid: $("resultsGrid"), empty: $("emptyState"), chips: $("activeChips"),
   sort: $("sortSelect"), more: $("moreBtn"), reset: $("resetBtn"), source: $("dataSource"),
+  landing: $("landing"), landingGrid: $("landingGrid"), browseAll: $("browseAllBtn"), toolbar: $("resultsToolbar"),
   detail: $("detailPanel"), detailCard: $("detailCard"), scrim: $("detailScrim"),
   filters: $("filters"), mobileToggle: $("mobileToggle"),
 };
@@ -178,12 +180,64 @@ function update(resetPaging = true) {
   sortResults();
   renderFilters();
   renderChips();
-  renderResults();
+  const landing = isLanding();
+  els.landing.hidden = !landing;
+  els.toolbar.hidden = landing;
+  els.grid.hidden = landing;
+  if (landing) renderLanding();
+  else renderResults();
+}
+
+// 検索語も絞り込み条件も無く、一覧表示を選んでいないとき
+function isLanding() {
+  return !state.browseAll && !state.query && GROUPS.every(g => !state.selected[g.key].size);
+}
+
+// ---------- 最初の画面（地域のタイル） ----------
+
+const RANK_WEIGHT = { "ボス": 0, "エリート": 1, "通常": 2 };
+
+function renderLanding() {
+  els.count.textContent = state.data.enemies.length.toLocaleString();
+  els.empty.hidden = true;
+  els.more.hidden = true;
+
+  const byRegion = new Map();
+  for (const e of state.data.enemies) {
+    for (const r of e.regions) {
+      if (!byRegion.has(r)) byRegion.set(r, []);
+      byRegion.get(r).push(e);
+    }
+  }
+  const frag = document.createDocumentFragment();
+  for (const [region, list] of [...byRegion].sort((a, b) => b[1].length - a[1].length)) {
+    // 代表として、ボス → エリート の順に、初登場が新しいものから3体
+    const picks = [...list]
+      .sort((a, b) => RANK_WEIGHT[a.rank] - RANK_WEIGHT[b.rank] || (b.debutAt ?? 0) - (a.debutAt ?? 0))
+      .slice(0, 3)
+      .map(e => e.name);
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "tile";
+    tile.innerHTML = `
+      <span class="tile__head"><span class="tile__name">${esc(region)}</span><span class="tile__count">${list.length}体</span></span>
+      <span class="tile__picks">${picks.map(esc).join("、")}</span>`;
+    tile.addEventListener("click", () => {
+      state.selected.region.add(region);
+      state.collapsed.delete("group:region");
+      update();
+      window.scrollTo({ top: 0 });
+    });
+    frag.appendChild(tile);
+  }
+  els.landingGrid.replaceChildren(frag);
 }
 
 function sortResults() {
   const key = state.sort;
   if (key === "index") return; // 生成時点で図鑑順
+  // 初登場日が同じもの同士は図鑑順のまま（sort は安定）。日付不明は最後
+  if (key === "new") return state.results.sort((a, b) => (b.debutAt ?? -1) - (a.debutAt ?? -1));
   if (key === "appear") state.results.sort((a, b) => b.appear.length - a.appear.length);
   else state.results.sort((a, b) => (b._base[key] ?? 0) - (a._base[key] ?? 0));
 }
@@ -426,11 +480,13 @@ function bindEvents() {
     timer = setTimeout(() => { state.query = els.search.value.trim().toLowerCase(); update(); }, 120);
   });
   els.sort.addEventListener("change", () => { state.sort = els.sort.value; update(); });
+  els.browseAll.addEventListener("click", () => { state.browseAll = true; update(); window.scrollTo({ top: 0 }); });
   els.more.addEventListener("click", () => { state.shown += PAGE_SIZE * 2; renderResults(); });
   els.reset.addEventListener("click", () => {
     state.query = ""; els.search.value = "";
     state.contentQuery = "";
     GROUPS.forEach(g => state.selected[g.key].clear());
+    state.browseAll = false;
     update();
   });
   els.scrim.addEventListener("click", closeDetail);

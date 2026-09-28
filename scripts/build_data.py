@@ -373,20 +373,20 @@ def appearance_key(app, content_list):
 
 
 def find_debut(dated_apps, content_list, region_by_content):
-    """(初登場コンテンツ, 地域の配列, 地域の元になったコンテンツ) を返す
+    """(初登場コンテンツ, 初登場日, 地域の配列, 地域の元になったコンテンツ) を返す
 
     初登場は開始日がいちばん早い登場。地域は、地域が設定されているコンテンツのうち
     いちばん早いもの（初登場が危機契約などで地域が無い場合は、次に早いものになる）。
     """
     if not dated_apps:
-        return None, [], None
+        return None, None, [], None
     ordered = sorted(dated_apps, key=lambda a: appearance_key(a, content_list))
-    debut = ordered[0][0]
+    debut, debut_date = ordered[0]
     for idx, _date in ordered:
         regions = region_by_content.get(content_list[idx]["name"])
         if regions:
-            return debut, list(regions), idx
-    return debut, [], None
+            return debut, debut_date, list(regions), idx
+    return debut, debut_date, [], None
 
 
 # ---------------------------------------------------------------
@@ -462,7 +462,7 @@ def main():
         apps.sort(key=lambda a: a[0])
 
         # 初登場と地域（地域は個別指定があればそれを優先）
-        debut, regions, region_from = find_debut(dated, content_list, region_by_content)
+        debut, debut_date, regions, region_from = find_debut(dated, content_list, region_by_content)
         if eid in region_by_enemy:
             regions, region_from = region_by_enemy[eid], None
 
@@ -480,6 +480,7 @@ def main():
             "stats": build_stats(entry) if entry else [],
             "appear": apps,
             "debut": debut,
+            "debutAt": debut_date,  # 初登場日（UNIX秒）。新しい順の並び替えに使う
             "regions": regions,
             "regionFrom": region_from,
             "sort": hb.get("sortId", 0),
