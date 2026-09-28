@@ -18,16 +18,19 @@ data/enemies.json を生成する。
     excel/roguelike_topic_table.json  統合戦略
     excel/climb_tower_table.json      保全駐在
     excel/sandbox_perm_table.json     生息演算
+    excel/story_review_table.json     メインテーマの公開日
     levels/enemydata/enemy_database.json  ステータス・種族・移動形態
     levels/**                         各ステージの敵編成
 
 地域（勢力）はゲームデータに存在しないため data/regions.json の手動対応表から付与する。
+敵の地域は、その敵が初登場したコンテンツ（地域が設定されているもの）の地域になる。
 """
 
 import json
 import re
 import sys
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -75,16 +78,43 @@ def file_key(path: Path, levels_dir: Path) -> str:
 
 class Contents:
     def __init__(self):
-        self.items = {}  # (category, name) -> {"category", "name", "order"}
+        self.items = {}  # (category, name) -> {"category", "name", "order", "date"}
 
-    def add(self, category, name, order):
+    def add(self, category, name, order, date=None):
+        """order は一覧の並び順、date は開始日（UNIX秒。初登場の判定に使う。不明なら None）"""
         key = (category, name)
         cur = self.items.get(key)
         if cur is None:
-            self.items[key] = {"category": category, "name": name, "order": order}
-        elif order < cur["order"]:
-            cur["order"] = order
+            self.items[key] = {"category": category, "name": name, "order": order, "date": date}
+        else:
+            if order < cur["order"]:
+                cur["order"] = order
+            if date is not None and (cur["date"] is None or date < cur["date"]):
+                cur["date"] = date
         return key
+
+
+# 日本版メインテーマの公開日。第8章まではゲームデータの日付（story_review_table の startShowTime）が
+# ストーリー記録機能の追加日などになっていて実際の公開日と違うため、公式告知の日付で上書きする。
+JST = timezone(timedelta(hours=9))
+MAIN_RELEASE_JP = {
+    0: datetime(2020, 1, 16, 16, tzinfo=JST),   # 序章〜第四章はサービス開始時から
+    1: datetime(2020, 1, 16, 16, tzinfo=JST),
+    2: datetime(2020, 1, 16, 16, tzinfo=JST),
+    3: datetime(2020, 1, 16, 16, tzinfo=JST),
+    4: datetime(2020, 1, 16, 16, tzinfo=JST),
+    5: datetime(2020, 2, 26, 16, tzinfo=JST),
+    6: datetime(2020, 6, 30, 16, tzinfo=JST),
+    7: datetime(2020, 12, 30, 16, tzinfo=JST),
+    8: datetime(2021, 4, 30, 16, tzinfo=JST),
+}
+
+
+def main_release_ts(chapter: int, story_review) -> int | None:
+    if chapter in MAIN_RELEASE_JP:
+        return int(MAIN_RELEASE_JP[chapter].timestamp())
+    ts = (story_review.get(f"main_{chapter}") or {}).get("startShowTime", -1)
+    return ts if ts and ts > 0 else None
 
 
 def build_level_map(base: Path):
@@ -103,6 +133,7 @@ def build_level_map(base: Path):
     basic = act["basicInfo"]
     zone_to_act = act["zoneToActivity"]
     retro = load(base, "excel/retro_table.json")
+    story_review = load(base, "excel/story_review_table.json")
 
     def act_order(act_id):
         info = basic.get(act_id)
@@ -116,7 +147,7 @@ def build_level_map(base: Path):
         if ztype == "MAINLINE":
             name = " ".join(x for x in [zone["zoneNameFirst"], zone["zoneNameSecond"]] if x)
             chapter = int(re.sub(r"\D", "", zone["zoneID"]) or 0)  # main_10 -> 10（zoneIndexは章順ではない）
-            ckey = contents.add("メインテーマ", name, chapter)
+            ckey = contents.add("メインテーマ", name, chapter, main_release_ts(chapter, story_review))
         elif ztype in ("ACTIVITY", "MAINLINE_ACTIVITY"):
             act_id = zone_to_act.get(st["zoneId"])
             info = basic.get(act_id)
@@ -140,13 +171,13 @@ def build_level_map(base: Path):
             continue
         linked = [a for a in (info.get("linkedActId") or []) if a in basic]
         order = min((act_order(a) for a in linked), default=info["startTime"])
-        ckey = contents.add("イベント", clean_event_name(info["name"]), order)
+        ckey = contents.add("イベント", clean_event_name(info["name"]), order, order)
         put(st.get("levelId"), ckey, st.get("code") or sid)
 
     # 統合戦略（ステージごとの差し替えマップ levelReplaceIds も含める）
     rogue = load(base, "excel/roguelike_topic_table.json")
     for i, (topic_id, topic) in enumerate(rogue["topics"].items()):
-        ckey = contents.add("統合戦略", topic["name"], i)
+        ckey = contents.add("統合戦略", topic["name"], i, topic.get("startTime"))
         for stage in rogue["details"].get(topic_id, {}).get("stages", {}).values():
             # 統合戦略のステージコードは難易度区分(ISW-NO等)で共通なので、ステージ名を使う
             label = stage.get("name") or stage.get("code")
@@ -170,10 +201,10 @@ def build_level_map(base: Path):
 def add_activity(contents: Contents, info):
     name = clean_event_name(info["name"])
     category = "特殊モード" if info.get("type", "").startswith(SPECIAL_ACT_TYPES) else "イベント"
-    return contents.add(category, name, info["startTime"])
+    return contents.add(category, name, info["startTime"], info["startTime"])
 
 
-def classify_unmapped(key: str, contents: Contents, basic, sandbox_names, rogue_topics):
+def classify_unmapped(key: str, contents: Contents, basic, sandbox_info, rogue_topics):
     """テーブルから辿れなかったレベルファイルをフォルダ名で分類する"""
     parts = key.split("/")
     fname = parts[-1]
@@ -181,16 +212,17 @@ def classify_unmapped(key: str, contents: Contents, basic, sandbox_names, rogue_
         return contents.add("特殊モード", "危機契約", 40), fname.replace("level_", "")
     if parts[:2] == ["obt", "sandbox"]:
         m = re.match(r"level_sandbox(\d+)_", fname)
-        topic = sandbox_names.get(f"sandbox_{m.group(1)}") if m else None
-        name = f"生息演算：{topic}" if topic else "生息演算"
-        return contents.add("特殊モード", name, 50), fname.replace("level_", "")
+        topic = sandbox_info.get(f"sandbox_{m.group(1)}") if m else None
+        name = f"生息演算：{topic['topicName']}" if topic else "生息演算"
+        date = topic.get("topicStartTime") if topic else None
+        return contents.add("特殊モード", name, 50, date), fname.replace("level_", "")
     if parts[:2] == ["obt", "roguelike"] and len(parts) >= 3:
         # ro4 -> rogue_4 のテーマ（テーブルに載っていない差し替えマップ等）
         m = re.match(r"ro(\d+)$", parts[2])
         topic = rogue_topics.get(f"rogue_{m.group(1)}") if m else None
         if topic:
             order = list(rogue_topics).index(f"rogue_{m.group(1)}")
-            return contents.add("統合戦略", topic["name"], order), fname.replace("level_", "")
+            return contents.add("統合戦略", topic["name"], order, topic.get("startTime")), fname.replace("level_", "")
         return None
     if parts[:2] == ["obt", "legion"]:
         return contents.add("特殊モード", "保全駐在", 20), fname.replace("level_", "")
@@ -254,29 +286,23 @@ def build_stats(db_entry):
 # 地域
 # ---------------------------------------------------------------
 
-# これ以上の地域にまたがって登場する敵は、各地に出てくる汎用的な敵とみなして地域なしにする
-GENERIC_REGION_COUNT = 4
+def debut_region(apps, content_list, region_by_content):
+    """初登場のコンテンツの地域を返す: (地域の配列, そのコンテンツの番号)
 
-
-def regions_from_contents(apps, content_list, region_by_content):
-    """登場するメインテーマ/イベントの地域を合わせる。無ければ統合戦略・特殊モードの地域を使う"""
-    def collect(categories):
-        counts = defaultdict(int)
-        for idx, _codes in apps:
-            c = content_list[idx]
-            if c["category"] in categories:
-                for r in region_by_content.get(c["name"], []):
-                    counts[r] += 1
-        if len(counts) >= GENERIC_REGION_COUNT:
-            return None  # 汎用的な敵
-        return sorted(counts, key=lambda r: -counts[r])
-
-    primary = collect({"メインテーマ", "イベント"})
-    if primary is None:
-        return []
-    if primary:
-        return primary
-    return collect({"統合戦略", "特殊モード"}) or []
+    開始日がわかっていて地域が設定されているコンテンツのうち、いちばん早いものを初登場とみなす。
+    本当の初登場が地域の無いコンテンツ（危機契約など）の場合は、その次に早いコンテンツの地域を使う。
+    同じ日のものはメインテーマの章番号などの並び順で決める。
+    """
+    candidates = []
+    for idx, _codes in apps:
+        c = content_list[idx]
+        if c["date"] is None or not region_by_content.get(c["name"]):
+            continue
+        candidates.append((c["date"], CATEGORIES.index(c["category"]), c["order"], idx))
+    if not candidates:
+        return [], None
+    idx = min(candidates)[3]
+    return list(region_by_content[content_list[idx]["name"]]), idx
 
 
 # ---------------------------------------------------------------
@@ -298,7 +324,7 @@ def main():
         db = {e["Key"]: e["Value"] for e in db["enemies"]}
 
     sandbox = load(base, "excel/sandbox_perm_table.json")
-    sandbox_names = {k: x["topicName"] for k, x in sandbox["basicInfo"].items()}
+    sandbox_info = sandbox["basicInfo"]
 
     contents, level_map, basic, rogue_topics = build_level_map(base)
 
@@ -307,7 +333,7 @@ def main():
     unmapped = defaultdict(int)
     for path in levels_dir.rglob("level_*.json"):
         key = file_key(path, levels_dir)
-        hit = level_map.get(key) or classify_unmapped(key, contents, basic, sandbox_names, rogue_topics)
+        hit = level_map.get(key) or classify_unmapped(key, contents, basic, sandbox_info, rogue_topics)
         if not hit:
             unmapped[key.split("/")[0] + "/" + key.split("/")[1]] += 1
             continue
@@ -349,10 +375,11 @@ def main():
             apps.append([content_index[ckey], codes])
         apps.sort(key=lambda a: a[0])
 
-        # 地域: 個別指定 > 登場コンテンツの地域
+        # 地域: 個別指定 > 初登場コンテンツの地域
         regions = region_by_enemy.get(eid)
+        region_from = None
         if regions is None:
-            regions = regions_from_contents(apps, content_list, region_by_content)
+            regions, region_from = debut_region(apps, content_list, region_by_content)
 
         enemies.append({
             "id": eid,
@@ -368,6 +395,7 @@ def main():
             "stats": build_stats(entry) if entry else [],
             "appear": apps,
             "regions": regions,
+            "regionFrom": region_from,
             "sort": hb.get("sortId", 0),
         })
 

@@ -315,11 +315,11 @@ function openDetail(e) {
     `<tr><th>${label}</th>${e.stats.map(s => `<td>${num(s[k])}</td>`).join("")}</tr>`).join("");
 
   const byCat = {};
-  for (const [idx, codes] of e.appear) (byCat[contents[idx].category] ??= []).push([contents[idx].name, codes]);
+  for (const [idx, codes] of e.appear) (byCat[contents[idx].category] ??= []).push([contents[idx].name, codes, idx]);
   const appearHtml = state.data.meta.categories.filter(c => byCat[c]).map(c => `
     <div class="detail__appear-cat">${esc(c)}</div>
     <ul class="detail__appear">
-      ${byCat[c].map(([name, codes]) => `<li><span>${esc(name)}</span>${codes.length ? `<span class="detail__codes">${esc(shortCodes(codes))}</span>` : ""}</li>`).join("")}
+      ${byCat[c].map(([name, codes, idx]) => `<li><span>${esc(name)}${idx === e.regionFrom ? `<span class="detail__debut">初登場</span>` : ""}</span>${codes.length ? `<span class="detail__codes">${esc(shortCodes(codes))}</span>` : ""}</li>`).join("")}
     </ul>`).join("") || `<p class="detail__none">登場ステージのデータが見つかりませんでした。</p>`;
 
   els.detailCard.innerHTML = `
@@ -328,8 +328,9 @@ function openDetail(e) {
     <h2 class="detail__name">${esc(e.name)}</h2>
     <div class="detail__tags">
       <span class="rank-badge rank-badge--${rankClass(e.rank)}">${esc(e.rank)}</span>
-      ${[...new Set([...e.races, e.motion, e.attackRange, ...e.damage, ...e.regions].filter(Boolean))].map(t => `<span class="tag">${esc(t)}</span>`).join("")}
+      ${[...new Set([...e.races, e.motion, e.attackRange, ...e.damage].filter(Boolean))].map(t => `<span class="tag">${esc(t)}</span>`).join("")}
     </div>
+    ${e.regions.length ? `<p class="detail__region">勢力 / 地域: ${e.regions.map(r => `<span class="tag tag--region">${esc(r)}</span>`).join(" ")}${e.regionFrom != null ? `<span class="detail__region-from">初登場: ${esc(contents[e.regionFrom].name)}</span>` : ""}</p>` : ""}
 
     ${e.abilities.length ? `<h3 class="detail__h">能力</h3><ul class="detail__abilities">${e.abilities.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
 

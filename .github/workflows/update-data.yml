@@ -34,6 +34,7 @@ jobs:
           /jp/gamedata/excel/roguelike_topic_table.json
           /jp/gamedata/excel/climb_tower_table.json
           /jp/gamedata/excel/sandbox_perm_table.json
+          /jp/gamedata/excel/story_review_table.json
           /jp/gamedata/excel/data_version.txt
           /jp/gamedata/levels/
           EOF
