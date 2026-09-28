@@ -32,7 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-RANK = {"NORMAL": "通常", "ELITE": "精鋭", "BOSS": "ボス"}
+RANK = {"NORMAL": "通常", "ELITE": "エリート", "BOSS": "ボス"}
 DAMAGE = {"PHYSIC": "物理", "MAGIC": "術", "NO_DAMAGE": "攻撃しない", "HEAL": "回復"}
 MOTION = {"WALK": "地上", "FLY": "空中"}
 APPLY_WAY = {"MELEE": "近距離", "RANGED": "遠距離", "ALL": "近/遠", "NONE": "攻撃しない"}

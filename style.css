@@ -350,9 +350,8 @@ button, input, select { font-family: inherit; }
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   margin: 0;
-  padding: 7px 0;
+  padding: 7px 0 0;
   border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
 }
 .card__stats div { min-width: 0; }
 .card__stats dt { font-size: 10.5px; color: var(--text-faint); }
@@ -370,7 +369,7 @@ button, input, select { font-family: inherit; }
 .rank-badge--elite  { background: rgba(79,168,216,0.16); color: var(--rank-elite); }
 .rank-badge--boss   { background: rgba(224,87,74,0.16); color: var(--rank-boss); }
 
-.card__tags, .detail__tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.detail__tags { display: flex; flex-wrap: wrap; gap: 5px; }
 
 .tag {
   font-size: 11px;
@@ -380,7 +379,6 @@ button, input, select { font-family: inherit; }
   border-radius: 2px;
 }
 .tag--region { color: var(--accent); border-color: var(--accent-dim); }
-.tag--more { color: var(--text-faint); }
 
 .results__more {
   display: block;

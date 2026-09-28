@@ -94,7 +94,7 @@ function facetCounts(key) {
 
 // 全体での出現値（並び順は件数の多い順。ランク等は固定順）
 const FIXED_ORDER = {
-  rank: ["通常", "精鋭", "ボス"],
+  rank: ["通常", "エリート", "ボス"],
   motion: ["地上", "空中"],
   range: ["近距離", "遠距離", "近/遠", "攻撃しない"],
   damage: ["物理", "術", "回復", "攻撃しない"],
@@ -283,9 +283,6 @@ function card(e) {
   const el = document.createElement("button");
   el.className = "card";
   const s = e._base;
-  const contents = state.data.contents;
-  const tags = e.appear.slice(0, 4).map(a => `<span class="tag">${esc(contents[a[0]].name)}</span>`).join("");
-  const more = e.appear.length > 4 ? `<span class="tag tag--more">+${e.appear.length - 4}</span>` : "";
   el.innerHTML = `
     <div class="card__top">
       <div>
@@ -300,11 +297,7 @@ function card(e) {
       <div><dt>攻撃</dt><dd>${num(s.atk)}</dd></div>
       <div><dt>防御</dt><dd>${num(s.def)}</dd></div>
       <div><dt>術耐</dt><dd>${num(s.res)}</dd></div>
-    </dl>
-    <div class="card__tags">
-      ${e.regions.map(r => `<span class="tag tag--region">${esc(r)}</span>`).join("")}
-      ${tags}${more}
-    </div>`;
+    </dl>`;
   el.addEventListener("click", () => openDetail(e));
   return el;
 }
@@ -395,7 +388,7 @@ function bindEvents() {
 // ---------- ユーティリティ ----------
 
 function toggleSet(set, v) { set.has(v) ? set.delete(v) : set.add(v); }
-function rankClass(rank) { return { "通常": "normal", "精鋭": "elite", "ボス": "boss" }[rank] || "normal"; }
+function rankClass(rank) { return { "通常": "normal", "エリート": "elite", "ボス": "boss" }[rank] || "normal"; }
 function num(n) { return n === undefined || n === null ? "-" : Number(n).toLocaleString(); }
 function esc(str) {
   return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
