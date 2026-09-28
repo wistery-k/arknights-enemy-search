@@ -35,6 +35,7 @@ const els = {
   grid: $("resultsGrid"), empty: $("emptyState"), chips: $("activeChips"),
   sort: $("sortSelect"), more: $("moreBtn"), reset: $("resetBtn"), source: $("dataSource"),
   landing: $("landing"), landingGrid: $("landingGrid"), browseAll: $("browseAllBtn"), toolbar: $("resultsToolbar"),
+  suggest: $("suggest"),
   detail: $("detailPanel"), detailCard: $("detailCard"), scrim: $("detailScrim"),
   filters: $("filters"), mobileToggle: $("mobileToggle"),
 };
@@ -183,6 +184,7 @@ function update(resetPaging = true) {
   const landing = isLanding();
   els.landing.hidden = !landing;
   els.toolbar.hidden = landing;
+  if (landing) els.suggest.hidden = true;
   els.grid.hidden = landing;
   if (landing) renderLanding();
   else renderResults();
@@ -195,7 +197,13 @@ function isLanding() {
 
 // ---------- 最初の画面（地域のタイル） ----------
 
-const RANK_WEIGHT = { "ボス": 0, "エリート": 1, "通常": 2 };
+const TILE_SOURCES = 5;
+
+// コンテンツの表示名（生息演算などはカテゴリ名を付ける）
+function contentLabel(i) {
+  const c = state.data.contents[i];
+  return c.label ? `${c.category}：${c.label}` : c.name;
+}
 
 function renderLanding() {
   els.count.textContent = state.data.enemies.length.toLocaleString();
@@ -211,17 +219,18 @@ function renderLanding() {
   }
   const frag = document.createDocumentFragment();
   for (const [region, list] of [...byRegion].sort((a, b) => b[1].length - a[1].length)) {
-    // 代表として、ボス → エリート の順に、初登場が新しいものから3体
-    const picks = [...list]
-      .sort((a, b) => RANK_WEIGHT[a.rank] - RANK_WEIGHT[b.rank] || (b.debutAt ?? 0) - (a.debutAt ?? 0))
-      .slice(0, 3)
-      .map(e => e.name);
+    // この地域の元になった章・イベントを、敵の数が多い順に最大5件
+    const sources = new Map();
+    for (const e of list) if (e.regionFrom != null) sources.set(e.regionFrom, (sources.get(e.regionFrom) || 0) + 1);
+    const ranked = [...sources].sort((a, b) => b[1] - a[1]);
+    const names = ranked.slice(0, TILE_SOURCES).map(([i]) => contentLabel(i));
+    const more = ranked.length > TILE_SOURCES ? `<span class="tile__more">ほか${ranked.length - TILE_SOURCES}件</span>` : "";
     const tile = document.createElement("button");
     tile.type = "button";
     tile.className = "tile";
     tile.innerHTML = `
       <span class="tile__head"><span class="tile__name">${esc(region)}</span><span class="tile__count">${list.length}体</span></span>
-      <span class="tile__picks">${picks.map(esc).join("、")}</span>`;
+      <span class="tile__picks">${names.map(esc).join("、")}${more}</span>`;
     tile.addEventListener("click", () => {
       state.selected.region.add(region);
       state.collapsed.delete("group:region");
@@ -367,7 +376,7 @@ function renderChips() {
     for (const v of state.selected[g.key]) {
       const chip = document.createElement("span");
       chip.className = "chip";
-      const label = g.key === "content" ? contents[v].name : v;
+      const label = g.key === "content" ? contentLabel(v) : v;
       chip.innerHTML = `<span>${esc(label)}</span><button aria-label="${esc(label)}の条件を外す">×</button>`;
       chip.querySelector("button").addEventListener("click", () => { state.selected[g.key].delete(v); update(); });
       frag.appendChild(chip);
@@ -376,10 +385,70 @@ function renderChips() {
   els.chips.replaceChildren(frag);
 }
 
+// ---------- 次の絞り込みの候補 ----------
+
+// 結果が多いときに一覧の上へ出す。まだ条件を選んでいないグループから、
+// 結果を分けられる値（全件に当てはまらない値）を件数の多い順に並べる。
+const SUGGEST_MIN_RESULTS = 24;
+const SUGGEST_GROUPS = [
+  { key: "content", title: "初登場", limit: 6 },
+  { key: "rank",    title: "ランク", limit: 3 },
+  { key: "race",    title: "種族",   limit: 4 },
+  { key: "motion",  title: "移動",   limit: 2 },
+  { key: "damage",  title: "攻撃",   limit: 3 },
+];
+
+function renderSuggestions() {
+  const list = state.results;
+  const rows = [];
+  if (list.length >= SUGGEST_MIN_RESULTS) {
+    for (const g of SUGGEST_GROUPS) {
+      if (state.selected[g.key].size) continue;
+      const counts = new Map();
+      for (const e of list) for (const v of new Set(e._values[g.key])) counts.set(v, (counts.get(v) || 0) + 1);
+      const order = FIXED_ORDER[g.key];
+      const values = [...counts]
+        .filter(([v, n]) => n < list.length && v !== "種族なし")
+        .sort((a, b) => order ? order.indexOf(a[0]) - order.indexOf(b[0]) : b[1] - a[1])
+        .slice(0, g.limit);
+      if (values.length) rows.push({ g, values });
+    }
+  }
+  els.suggest.hidden = !rows.length;
+  if (!rows.length) return;
+
+  const frag = document.createDocumentFragment();
+  const head = document.createElement("div");
+  head.className = "suggest__title";
+  head.textContent = "さらに絞り込む";
+  frag.appendChild(head);
+  for (const { g, values } of rows) {
+    const row = document.createElement("div");
+    row.className = "suggest__row";
+    row.innerHTML = `<span class="suggest__label">${esc(g.title)}</span>`;
+    for (const [v, n] of values) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "suggest__chip";
+      const label = g.key === "content" ? contentLabel(v) : v;
+      b.innerHTML = `<span>${esc(label)}</span><span class="suggest__count">${n}</span>`;
+      b.addEventListener("click", () => {
+        state.selected[g.key].add(v);
+        update();
+        window.scrollTo({ top: 0 });
+      });
+      row.appendChild(b);
+    }
+    frag.appendChild(row);
+  }
+  els.suggest.replaceChildren(frag);
+}
+
 function renderResults() {
   const list = state.results;
   els.count.textContent = list.length.toLocaleString();
   els.empty.hidden = list.length > 0;
+  renderSuggestions();
   const frag = document.createDocumentFragment();
   for (const e of list.slice(0, state.shown)) frag.appendChild(card(e));
   els.grid.replaceChildren(frag);
