@@ -45,7 +45,7 @@ MOTION = {"WALK": "地上", "FLY": "空中"}
 APPLY_WAY = {"MELEE": "近距離", "RANGED": "遠距離", "ALL": "近/遠", "NONE": "攻撃しない"}
 
 # カテゴリの表示順
-CATEGORIES = ["メインテーマ", "イベント", "統合戦略", "特殊モード", "その他"]
+CATEGORIES = ["メインテーマ", "イベント", "統合戦略", "生息演算", "協心競技", "堅守協定", "鋒矢突破", "特殊モード", "その他"]
 
 # イベント扱いではなく「特殊モード」に分類する activity_table の type（前方一致）
 SPECIAL_ACT_TYPES = ("BOSS_RUSH", "VEC_BREAK", "MULTIPLAY", "AUTOCHESS", "ENEMY_DUEL", "ARCADE", "HALFIDLE")
@@ -80,7 +80,7 @@ def file_key(path: Path, levels_dir: Path) -> str:
 # コンテンツ（どのモード・どのイベントか）の登録
 # ---------------------------------------------------------------
 
-# 特殊モードの中で、まとめて1つの見出しの下に並べるもの: (名前の正規表現, 見出し, 子の表示名から消す接頭辞)
+# 特殊モードのうち、独立したカテゴリとして扱うもの: (名前の正規表現, カテゴリ名, 表示名から消す接頭辞)
 CONTENT_GROUPS = [
     (r"^生息演算", "生息演算", "生息演算："),
     (r"協心競技", "協心競技", ""),
@@ -91,21 +91,21 @@ CONTENT_GROUPS = [
 
 class Contents:
     def __init__(self):
-        self.items = {}  # (category, name) -> {"category", "name", "order", "group", "label"}
+        self.items = {}  # (category, name) -> {"category", "name", "order", "label"}
 
     def add(self, category, name, order):
         """order は一覧の並び順"""
+        label = name
+        if category == "特殊モード":
+            for pattern, cat, prefix in CONTENT_GROUPS:
+                if re.search(pattern, name):
+                    category = cat
+                    label = name[len(prefix):] if prefix and name.startswith(prefix) else name
+                    break
         key = (category, name)
         cur = self.items.get(key)
         if cur is None:
-            group, label = None, name
-            if category == "特殊モード":
-                for pattern, g, prefix in CONTENT_GROUPS:
-                    if re.search(pattern, name):
-                        group = g
-                        label = name[len(prefix):] if prefix and name.startswith(prefix) else name
-                        break
-            self.items[key] = {"category": category, "name": name, "order": order, "group": group, "label": label}
+            self.items[key] = {"category": category, "name": name, "order": order, "label": label}
         elif order < cur["order"]:
             cur["order"] = order
         return key
@@ -440,17 +440,9 @@ def main():
     # コンテンツ一覧（図鑑に載っている敵が1体以上いるものだけ。カテゴリ順 → 開催順）
     visible = {eid for eid, hb in handbook["enemyData"].items() if not hb.get("hideInHandbook")}
     used_keys = {ck for eid, per in appear.items() if eid in visible for ck in per}
-    used = [contents.items[k] for k in used_keys]
-    # 見出しでまとめるもの（生息演算など）は、見出しの中で最も早い順番の位置にまとめて並べる
-    group_order = {}
-    for c in used:
-        if c["group"]:
-            group_order[c["group"]] = min(group_order.get(c["group"], c["order"]), c["order"])
     content_list = sorted(
-        used,
-        key=lambda c: (CATEGORIES.index(c["category"]),
-                       group_order[c["group"]] if c["group"] else c["order"],
-                       c["group"] or "", c["order"], c["name"]),
+        (contents.items[k] for k in used_keys),
+        key=lambda c: (CATEGORIES.index(c["category"]), c["order"], c["name"]),
     )
     content_index = {(c["category"], c["name"]): i for i, c in enumerate(content_list)}
 
@@ -511,7 +503,7 @@ def main():
         },
         "contents": [
             {k: x for k, x in (("category", c["category"]), ("name", c["name"]),
-                               ("group", c["group"]), ("label", c["label"] if c["label"] != c["name"] else None))
+                               ("label", c["label"] if c["label"] != c["name"] else None))
              if x is not None}
             for c in content_list
         ],

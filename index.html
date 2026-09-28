@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="build" content="dev">
 <title>敵情報検索 | Rhodes Terminal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +17,7 @@
     <span class="topbar__mark">R.I.</span>
     <div class="topbar__titles">
       <h1>敵情報検索</h1>
-      <p>ENEMY DATA TERMINAL</p>
+      <p id="buildInfo">ENEMY DATA TERMINAL</p>
     </div>
   </div>
 
@@ -39,6 +40,10 @@
   </aside>
 
   <main class="results">
+    <div class="update-notice" id="updateNotice" hidden>
+      <span>新しい版が公開されています。</span>
+      <button type="button" id="reloadBtn">再読み込みして反映</button>
+    </div>
     <div class="results__toolbar">
       <div class="results__chips" id="activeChips"></div>
       <label class="results__sort">

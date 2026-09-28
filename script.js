@@ -40,8 +40,9 @@ const els = {
 init();
 
 async function init() {
+  const build = await loadBuildInfo();
   try {
-    const res = await fetch("data/enemies.json");
+    const res = await fetch(`data/enemies.json${build ? `?v=${build.commit}` : ""}`);
     if (!res.ok) throw new Error(res.status);
     state.data = await res.json();
   } catch (err) {
@@ -62,6 +63,33 @@ async function init() {
 
   bindEvents();
   update();
+}
+
+// ---------- 公開バージョン ----------
+
+// 公開時に作られる build-info.json を読み、左下に更新日時を出す。
+// 表示中のページより新しい版が公開されていたら、再読み込みを促す。
+async function loadBuildInfo() {
+  let info;
+  try {
+    const res = await fetch("build-info.json", { cache: "no-store" });
+    if (!res.ok) return null;
+    info = await res.json();
+  } catch {
+    return null; // ローカル確認時などは無い
+  }
+  const el = $("buildInfo");
+  el.textContent = `更新 ${info.committedAt}（${info.commit}）`;
+  el.title = `公開: ${info.deployedAt}`;
+  el.classList.add("topbar__build");
+
+  const loaded = document.querySelector('meta[name="build"]')?.content;
+  if (loaded && loaded !== "dev" && loaded !== info.commit) {
+    $("updateNotice").hidden = false;
+    // index.html 自体もキャッシュされるので、URLを変えて最新版を取りにいく
+    $("reloadBtn").addEventListener("click", () => location.replace(`${location.pathname}?v=${info.commit}`));
+  }
+  return info;
 }
 
 // ---------- 絞り込み ----------
@@ -216,7 +244,7 @@ function renderContentOptions(body, values, counts) {
 
   for (const cat of state.data.meta.categories) {
     const idxs = values.filter(i => contents[i].category === cat);
-    const visible = q ? idxs.filter(i => (contents[i].name + (contents[i].group || "")).toLowerCase().includes(q)) : idxs;
+    const visible = q ? idxs.filter(i => (cat + contents[i].name).toLowerCase().includes(q)) : idxs;
     if (!visible.length) continue;
 
     const catId = "cat:" + cat;
@@ -246,42 +274,9 @@ function renderContentOptions(body, values, counts) {
     if (!open) continue;
     const list = document.createElement("div");
     list.className = "filters__cat-list";
-    const doneGroups = new Set();
-    for (const i of visible) {
-      const g = contents[i].group;
-      if (!g) { list.appendChild(optionRow("content", i, contents[i].name, counts.get(i) || 0)); continue; }
-      if (doneGroups.has(g)) continue;
-      doneGroups.add(g);
-      // 生息演算・協心競技などは見出しの下にまとめる
-      const members = idxs.filter(j => contents[j].group === g);
-      list.appendChild(contentGroupRow(g, members, counts));
-      const sub = document.createElement("div");
-      sub.className = "filters__cat-list filters__cat-list--sub";
-      for (const j of visible.filter(j => contents[j].group === g)) {
-        sub.appendChild(optionRow("content", j, contents[j].label || contents[j].name, counts.get(j) || 0));
-      }
-      list.appendChild(sub);
-    }
+    for (const i of visible) list.appendChild(optionRow("content", i, contents[i].label || contents[i].name, counts.get(i) || 0));
     body.appendChild(list);
   }
-}
-
-function contentGroupRow(name, members, counts) {
-  const sel = state.selected.content;
-  const nSel = members.filter(i => sel.has(i)).length;
-  const total = members.reduce((n, i) => n + (counts.get(i) || 0), 0);
-  const row = document.createElement("label");
-  row.className = "filter-option filter-option--group" + (nSel ? " filter-option--checked" : "") + (!total && !nSel ? " filter-option--empty" : "");
-  row.innerHTML = `<input type="checkbox"><span class="filter-option__label">${esc(name)}</span><span class="filter-option__count">${total}</span>`;
-  const box = row.querySelector("input");
-  box.checked = nSel === members.length;
-  box.indeterminate = nSel > 0 && nSel < members.length;
-  box.addEventListener("change", () => {
-    if (box.checked) members.forEach(i => sel.add(i));
-    else members.forEach(i => sel.delete(i));
-    update();
-  });
-  return row;
 }
 
 function renderChips() {
@@ -348,7 +343,7 @@ function openDetail(e) {
     `<tr><th>${label}</th>${e.stats.map(s => `<td>${num(s[k])}</td>`).join("")}</tr>`).join("");
 
   const byCat = {};
-  for (const [idx, codes] of e.appear) (byCat[contents[idx].category] ??= []).push([contents[idx].name, codes, idx]);
+  for (const [idx, codes] of e.appear) (byCat[contents[idx].category] ??= []).push([contents[idx].label || contents[idx].name, codes, idx]);
   const appearHtml = state.data.meta.categories.filter(c => byCat[c]).map(c => `
     <div class="detail__appear-cat">${esc(c)}</div>
     <ul class="detail__appear">

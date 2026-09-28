@@ -1,0 +1,58 @@
+name: Deploy site
+
+# main への push、データ自動更新の完了、手動実行のたびに GitHub Pages へ公開する。
+# 公開時に build-info.json（コミット番号・日時）を作り、画面の左下に表示する。
+# 使うには Settings → Pages → Source を「GitHub Actions」にしておく。
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Update enemy data"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Build site with version info
+        run: |
+          mkdir _site
+          cp -r index.html style.css script.js data _site/
+          SHA=$(git rev-parse --short HEAD)
+          COMMITTED=$(TZ=Asia/Tokyo git log -1 --date=format-local:'%Y-%m-%d %H:%M' --format=%cd)
+          DEPLOYED=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')
+          printf '{"commit":"%s","committedAt":"%s","deployedAt":"%s"}\n' "$SHA" "$COMMITTED" "$DEPLOYED" > _site/build-info.json
+          # 古いCSS/JSがキャッシュに残らないよう、参照にコミット番号を付ける
+          sed -i \
+            -e "s|<meta name=\"build\" content=\"dev\">|<meta name=\"build\" content=\"$SHA\">|" \
+            -e "s|href=\"style.css\"|href=\"style.css?v=$SHA\"|" \
+            -e "s|src=\"script.js\"|src=\"script.js?v=$SHA\"|" \
+            _site/index.html
+          cat _site/build-info.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
