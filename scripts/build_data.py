@@ -166,6 +166,9 @@ class Tables:
         # イベント名（復刻を除いた名前）ごとの初回開催日。復刻のステージは復刻側のイベントIDに
         # 紐づいていることがあるため、同じ名前のイベントの最も早い開始日を使う
         self.event_first = {}
+        self.rerun_linked = set()  # 常設化・復刻の対象になったイベントID
+        for info in (self.retro.get("retroActList") or {}).values():
+            self.rerun_linked.update(info.get("linkedActId") or [])
         for info in self.basic.values():
             self._note_event(clean_event_name(info["name"]), valid_ts(info["startTime"]))
         for info in (self.retro.get("retroActList") or {}).values():
@@ -178,9 +181,17 @@ class Tables:
             self.event_first[name] = ts
 
     def act_start(self, act_id):
-        """そのイベントの初回開催日"""
+        """そのイベントの開催日。復刻・常設化されたイベントは初回開催日
+
+        エイプリルフールや導灯の試練のように毎回同じ名前のイベントは、回ごとの開催日を使う
+        （同じ名前の最初の回の日付にすると、後の回で追加された敵まで古い日付になってしまう）。
+        """
         info = self.basic.get(act_id)
-        return self.event_first.get(clean_event_name(info["name"])) if info else None
+        if not info:
+            return None
+        if "復刻" in info["name"] or act_id in self.rerun_linked:
+            return self.event_first.get(clean_event_name(info["name"]))
+        return valid_ts(info["startTime"])
 
     def tower_start(self, tower_id):
         """その保全駐在マップが最初に開放されたシーズンの開始日（訓練マップは最初のシーズン）"""
@@ -389,6 +400,56 @@ def find_debut(dated_apps, content_list, region_by_content):
     return debut, debut_date, [], None
 
 
+# 常設で後から追加ステージがあり、ステージごとの追加日がデータに無いカテゴリ。
+# ここでの登場日はモード開始日で代用しているため、実際より早く見えることがある
+IMPRECISE_CATEGORIES = {"統合戦略", "生息演算", "危機契約"}
+
+
+def index_series(index):
+    """図鑑番号の記号部分（SMN16 -> SMN）。同じ記号の敵は同じイベント等で追加されたことが多い"""
+    m = re.match(r"[A-Za-z]+", index or "")
+    return m.group(0) if m else None
+
+
+def assign_debuts(enemies, content_list, region_by_content):
+    """統合戦略・生息演算などの日付の粗さを、図鑑番号の系統で補正する
+
+    例: 「リードギター」(SMN16) は生息演算の後から追加されたステージにも出るが、
+    モード開始日で比べるとバベルより早く見えてしまう。SMN の敵の大半はバベルが初登場なので、
+    バベルにも出ている SMN の敵は、生息演算での登場日をバベルでの登場日より後ろに回す。
+    """
+    def is_imprecise(idx):
+        c = content_list[idx]
+        return c["category"] in IMPRECISE_CATEGORIES or c["name"] in IMPRECISE_CATEGORIES
+
+    # 1回目: そのまま初登場を出し、系統ごとに最も多い初登場コンテンツを「系統の出どころ」とする
+    votes = defaultdict(lambda: defaultdict(int))
+    for e in enemies:
+        series = index_series(e["index"])
+        debut = find_debut(e["_dated"], content_list, region_by_content)[0]
+        if series and debut is not None:
+            votes[series][debut] += 1
+    origin = {}
+    for series, counts in votes.items():
+        best = max(counts.items(), key=lambda kv: kv[1])
+        # 系統の過半数がそこで初登場している場合だけ採用する（拮抗しているときは補正しない）
+        if not is_imprecise(best[0]) and best[1] >= 2 and best[1] * 2 > sum(counts.values()):
+            origin[series] = best[0]
+
+    # 2回目: 出どころにも出ている敵は、日付の粗いコンテンツでの登場日を出どころより後ろにする
+    for e in enemies:
+        src = origin.get(index_series(e["index"]))
+        if src is None:
+            continue
+        dates = dict(e["_dated"])
+        if src not in dates or dates[src] is None:
+            continue
+        e["_dated"] = [
+            (idx, (dates[src] + 1) if is_imprecise(idx) and (d is None or d <= dates[src]) else d)
+            for idx, d in e["_dated"]
+        ]
+
+
 # ---------------------------------------------------------------
 # main
 # ---------------------------------------------------------------
@@ -461,11 +522,6 @@ def main():
             dated.append((content_index[ckey], rec["date"]))
         apps.sort(key=lambda a: a[0])
 
-        # 初登場と地域（地域は個別指定があればそれを優先）
-        debut, debut_date, regions, region_from = find_debut(dated, content_list, region_by_content)
-        if eid in region_by_enemy:
-            regions, region_from = region_by_enemy[eid], None
-
         enemies.append({
             "id": eid,
             "index": hb.get("enemyIndex"),
@@ -479,12 +535,17 @@ def main():
             "description": hb.get("description") or "",
             "stats": build_stats(entry) if entry else [],
             "appear": apps,
-            "debut": debut,
-            "debutAt": debut_date,  # 初登場日（UNIX秒）。新しい順の並び替えに使う
-            "regions": regions,
-            "regionFrom": region_from,
             "sort": hb.get("sortId", 0),
+            "_dated": dated,
         })
+
+    # 初登場と地域
+    assign_debuts(enemies, content_list, region_by_content)
+    for e in enemies:
+        dated = e.pop("_dated")
+        e["debut"], e["debutAt"], e["regions"], e["regionFrom"] = find_debut(dated, content_list, region_by_content)
+        if e["id"] in region_by_enemy:  # 地域は個別指定を優先
+            e["regions"], e["regionFrom"] = region_by_enemy[e["id"]], None
 
     enemies.sort(key=lambda e: e["sort"])
     for e in enemies:
