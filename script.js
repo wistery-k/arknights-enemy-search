@@ -552,12 +552,13 @@ function bindEvents() {
   els.sort.addEventListener("change", () => { state.sort = els.sort.value; update(); });
   els.browseAll.addEventListener("click", () => { state.browseAll = true; update(); window.scrollTo({ top: 0 }); });
   els.more.addEventListener("click", () => { state.shown += PAGE_SIZE * 2; renderResults(); });
-  els.reset.addEventListener("click", () => {
-    state.query = ""; els.search.value = "";
-    state.contentQuery = "";
-    GROUPS.forEach(g => state.selected[g.key].clear());
-    state.browseAll = false;
-    update();
+  els.reset.addEventListener("click", goHome);
+  // タイトルを押すと最初の画面（地域のタイル）に戻る
+  $("homeLink").addEventListener("click", ev => {
+    ev.preventDefault();
+    closeDetail();
+    goHome();
+    window.scrollTo({ top: 0 });
   });
   els.scrim.addEventListener("click", closeDetail);
   document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !els.detail.hidden) closeDetail(); });
@@ -566,6 +567,15 @@ function bindEvents() {
     els.mobileToggle.setAttribute("aria-expanded", open);
     els.mobileToggle.textContent = open ? "絞り込み条件を閉じる" : "絞り込み条件を開く";
   });
+}
+
+// すべての条件を外して最初の画面に戻す
+function goHome() {
+  state.query = ""; els.search.value = "";
+  state.contentQuery = "";
+  GROUPS.forEach(g => state.selected[g.key].clear());
+  state.browseAll = false;
+  update();
 }
 
 // ---------- ユーティリティ ----------

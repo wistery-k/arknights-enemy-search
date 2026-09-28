@@ -48,7 +48,7 @@ MOTION = {"WALK": "地上", "FLY": "空中"}
 APPLY_WAY = {"MELEE": "近距離", "RANGED": "遠距離", "ALL": "近/遠", "NONE": "攻撃しない"}
 
 # カテゴリの表示順
-CATEGORIES = ["メインテーマ", "イベント", "統合戦略", "生息演算", "協心競技", "堅守協定", "鋒矢突破", "特殊モード", "その他"]
+CATEGORIES = ["メインテーマ", "イベント", "統合戦略", "生息演算", "協心競技", "堅守協定", "鋒矢突破", "その他"]
 
 # イベント扱いではなく「特殊モード」に分類する activity_table の type（前方一致）
 SPECIAL_ACT_TYPES = ("BOSS_RUSH", "VEC_BREAK", "MULTIPLAY", "AUTOCHESS", "ENEMY_DUEL", "ARCADE", "HALFIDLE")
@@ -105,6 +105,8 @@ class Contents:
                     category = cat
                     label = name[len(prefix):] if prefix and name.startswith(prefix) else name
                     break
+        if category == "特殊モード":  # 独立カテゴリにしなかった特殊モードは「その他」にまとめる
+            category = "その他"
         key = (category, name)
         cur = self.items.get(key)
         if cur is None:

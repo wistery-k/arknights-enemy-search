@@ -68,6 +68,9 @@ button, input, select { font-family: inherit; }
   margin: 0;
 }
 
+.topbar__home { color: inherit; text-decoration: none; }
+.topbar__home:hover { color: var(--accent); }
+
 .topbar__titles p {
   margin: 1px 0 0;
   font-size: 11.5px;
