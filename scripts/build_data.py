@@ -22,6 +22,9 @@ data/enemies.json を生成する。
     excel/crisis_table.json           危機契約（旧形式）の開催日
     excel/crisis_v2_table.json        危機契約の開催日
     excel/campaign_table.json         殲滅作戦（ローテーションマップ）の開放日
+    excel/handbook_info_table.json    逆理演算のステージと追加日
+    excel/character_table.json        オペレーター名（逆理演算の表示用）
+    data/debut_overrides.json         初登場の手動指定（自動判定できないもの）
     levels/enemydata/enemy_database.json  ステータス・種族・移動形態
     levels/**                         各ステージの敵編成
 
@@ -150,7 +153,24 @@ class Tables:
         self.rogue_topics = rogue["topics"]
         self.rogue_details = rogue["details"]
         self.climb = load(base, "excel/climb_tower_table.json")
-        self.sandbox = load(base, "excel/sandbox_perm_table.json")["basicInfo"]
+        sandbox = load(base, "excel/sandbox_perm_table.json")
+        self.sandbox = sandbox["basicInfo"]
+        # 生息演算のステージ名（levelファイルのキー -> ステージ名）
+        self.sandbox_stage_names = {}
+        for topics in (sandbox.get("detail") or {}).values():
+            for topic in topics.values():
+                for st in (topic.get("stageData") or {}).values():
+                    if st.get("levelId") and st.get("name"):
+                        self.sandbox_stage_names[level_key(st["levelId"])] = st["name"]
+        # 逆理演算: オペレーターごとのステージと追加日
+        handbook_info = load(base, "excel/handbook_info_table.json")
+        self.paradox_stages = handbook_info.get("handbookStageData") or {}
+        self.paradox_dates = {}
+        for group in handbook_info.get("handbookStageTime") or []:
+            for char_id in group.get("charSet") or []:
+                self.paradox_dates.setdefault(char_id, valid_ts(group.get("timestamp")))
+        chars = load(base, "excel/character_table.json")
+        self.char_names = {cid: c.get("name") for cid, c in chars.items()}
         self.crisis_v1 = sorted(
             (s for s in load(base, "excel/crisis_table.json")["seasonInfo"]),
             key=lambda s: s["startTs"],
@@ -283,6 +303,11 @@ def build_level_map(t: Tables):
     for lv in t.climb["levels"].values():
         put(lv.get("levelId"), ckey, lv.get("code"), t.tower_start(lv.get("towerId", "")))
 
+    # 逆理演算（ステージコードの代わりにオペレーター名を表示する）
+    ckey = contents.add("その他", "逆理演算", 20)
+    for char_id, st in t.paradox_stages.items():
+        put(st.get("levelId"), ckey, t.char_names.get(char_id) or st.get("code"), t.paradox_dates.get(char_id))
+
     return contents, level_map
 
 
@@ -304,7 +329,7 @@ def classify_unmapped(key: str, contents: Contents, t: Tables):
         topic = t.sandbox.get(f"sandbox_{m.group(1)}") if m else None
         name = f"生息演算：{topic['topicName']}" if topic else "生息演算"
         date = valid_ts(topic.get("topicStartTime")) if topic else None
-        return contents.add("特殊モード", name, 50), code, date
+        return contents.add("特殊モード", name, 50), t.sandbox_stage_names.get(key, code), date
     if parts[:2] == ["obt", "roguelike"] and len(parts) >= 3:
         # ro4 -> rogue_4 のテーマ（テーブルに載っていない差し替えマップ等）
         m = re.match(r"ro(\d+)$", parts[2])
@@ -317,7 +342,7 @@ def classify_unmapped(key: str, contents: Contents, t: Tables):
     if parts[:2] == ["obt", "legion"]:
         return contents.add("特殊モード", "保全駐在", 20), code, None
     if parts[:2] == ["obt", "memory"]:
-        return contents.add("その他", "オペレーター密録", 20), code, None
+        return contents.add("その他", "逆理演算", 20), code, None
     if parts[0] == "activities" and len(parts) >= 3:
         info = t.basic.get(parts[1])
         if info:
@@ -402,7 +427,7 @@ def find_debut(dated_apps, content_list, region_by_content):
 
 # 常設で後から追加ステージがあり、ステージごとの追加日がデータに無いカテゴリ。
 # ここでの登場日はモード開始日で代用しているため、実際より早く見えることがある
-IMPRECISE_CATEGORIES = {"統合戦略", "生息演算", "危機契約"}
+IMPRECISE_CATEGORIES = {"統合戦略", "生息演算", "危機契約", "逆理演算"}
 
 
 def index_series(index):
@@ -441,13 +466,113 @@ def assign_debuts(enemies, content_list, region_by_content):
         src = origin.get(index_series(e["index"]))
         if src is None:
             continue
-        dates = dict(e["_dated"])
-        if src not in dates or dates[src] is None:
+        push_after(e, src, is_imprecise)
+
+    # 3回目: 図鑑番号の並び（おおむね追加順）で前後にいる敵を見る。
+    # 初登場が日付の粗いコンテンツになっている敵で、前後の敵の多くが初登場したコンテンツに
+    # その敵も出ているなら、そちらを初登場とする（例: 墟の敵の間に挟まった統合戦略初登場の敵）
+    debuts = [find_debut(e["_dated"], content_list, region_by_content)[0] for e in enemies]
+    for i, e in enumerate(enemies):
+        if debuts[i] is None or not is_imprecise(debuts[i]):
             continue
-        e["_dated"] = [
-            (idx, (dates[src] + 1) if is_imprecise(idx) and (d is None or d <= dates[src]) else d)
-            for idx, d in e["_dated"]
-        ]
+        appears = {idx for idx, _d in e["_dated"]}
+        near = [debuts[j] for j in range(max(0, i - NEIGHBOR_WINDOW), min(len(enemies), i + NEIGHBOR_WINDOW + 1))
+                if j != i and debuts[j] is not None and not is_imprecise(debuts[j]) and debuts[j] in appears]
+        if not near:
+            continue
+        src, n = max(((c, near.count(c)) for c in set(near)), key=lambda kv: kv[1])
+        if n >= 2:
+            push_after(e, src, is_imprecise)
+
+
+NEIGHBOR_WINDOW = 4
+
+
+def push_after(e, src, is_imprecise):
+    """日付の粗いコンテンツでの登場日を、src での登場日より後ろにする"""
+    dates = dict(e["_dated"])
+    if dates.get(src) is None:
+        return
+    e["_dated"] = [
+        (idx, (dates[src] + 1) if is_imprecise(idx) and (d is None or d <= dates[src]) else d)
+        for idx, d in e["_dated"]
+    ]
+
+
+def fill_debut_from_series(enemies, content_list, region_by_content, content_first):
+    """どのステージにも出てこない敵（生息演算のフィールドにだけ出る敵など）は、
+    図鑑番号の系統の過半数が初登場したコンテンツを初登場とする"""
+    votes = defaultdict(lambda: defaultdict(int))
+    for e in enemies:
+        series = index_series(e["index"])
+        if series and e["debut"] is not None:
+            votes[series][e["debut"]] += 1
+    for e in enemies:
+        counts = votes.get(index_series(e["index"]))
+        if e["debut"] is not None or not counts:
+            continue
+        best, n = max(counts.items(), key=lambda kv: kv[1])
+        if n * 2 <= sum(counts.values()):
+            continue
+        e["debut"], e["debutAt"] = best, content_first.get(best)
+        e["appear"] = sorted(e["appear"] + [[best, []]], key=lambda a: a[0])
+        regions = region_by_content.get(content_list[best]["name"], [])
+        e["regions"], e["regionFrom"] = list(regions), (best if regions else None)
+
+
+def apply_debut_overrides(enemies, content_list, contents, t, region_by_content, content_first):
+    """data/debut_overrides.json の手動指定で初登場を上書きする
+
+    ステージデータが残っていないコラボイベントなど、自動では判定できないもの用。
+    """
+    path = ROOT / "data" / "debut_overrides.json"
+    if not path.exists():
+        return
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+
+    # 追加のコンテンツ（ゲームデータにステージが残っていないイベントなど）
+    extra_dates = {}
+    for c in cfg.get("contents") or []:
+        info = t.basic.get(c.get("activity")) or {}
+        date = valid_ts(info.get("startTime"))
+        key = contents.add(c["category"], c["name"], date or 10**10)
+        if key not in [(x["category"], x["name"]) for x in content_list]:
+            content_list.append(contents.items[key])
+        extra_dates[c["name"]] = date
+    # 追加したコンテンツも含めて並べ直し、各敵の番号を付け直す
+    old = list(content_list)
+    content_list.sort(key=lambda c: (CATEGORIES.index(c["category"]), c["order"], c["name"]))
+    remap = {i: content_list.index(c) for i, c in enumerate(old)}
+    content_first = {remap[i]: d for i, d in content_first.items()}
+    for e in enemies:
+        e["appear"] = sorted([[remap[i], codes] for i, codes in e["appear"]], key=lambda a: a[0])
+        e["_datemap"] = {remap[i]: d for i, d in e["_datemap"].items()}
+        for k in ("debut", "regionFrom"):
+            if e[k] is not None:
+                e[k] = remap[e[k]]
+
+    by_name = {c["name"]: i for i, c in enumerate(content_list)}
+    order = [e["index"] for e in enemies]
+    by_index = {e["index"]: e for e in enemies}
+    for rule in cfg.get("rules") or []:
+        target = by_name.get(rule["content"])
+        if target is None:
+            print(f"警告: debut_overrides.json のコンテンツ「{rule['content']}」が見つかりません")
+            continue
+        picked = [by_index[i] for i in rule.get("indexes") or [] if i in by_index]
+        if rule.get("range"):
+            a, b = (order.index(x) for x in rule["range"])
+            picked += enemies[a:b + 1]
+        for e in picked:
+            e["debut"] = target
+            if not any(a[0] == target for a in e["appear"]):
+                e["appear"] = sorted(e["appear"] + [[target, []]], key=lambda a: a[0])
+            # 初登場日: 追加コンテンツの開催日 > その敵のそこでの登場日 > そのコンテンツの最初の日付
+            e["debutAt"] = (extra_dates.get(rule["content"]) or e["_datemap"].get(target)
+                            or content_first.get(target))
+            # 地域: そのコンテンツの地域。地域が設定されていないコンテンツなら地域なし
+            regions = rule.get("regions", region_by_content.get(rule["content"], []))
+            e["regions"], e["regionFrom"] = list(regions), (target if regions else None)
 
 
 # ---------------------------------------------------------------
@@ -539,17 +664,26 @@ def main():
             "_dated": dated,
         })
 
-    # 初登場と地域
-    assign_debuts(enemies, content_list, region_by_content)
-    for e in enemies:
-        dated = e.pop("_dated")
-        e["debut"], e["debutAt"], e["regions"], e["regionFrom"] = find_debut(dated, content_list, region_by_content)
-        if e["id"] in region_by_enemy:  # 地域は個別指定を優先
-            e["regions"], e["regionFrom"] = region_by_enemy[e["id"]], None
-
+    # 初登場と地域（図鑑番号の並びを使うので先に図鑑順に並べる）
     enemies.sort(key=lambda e: e["sort"])
     for e in enemies:
         del e["sort"]
+    assign_debuts(enemies, content_list, region_by_content)
+    content_first = {}
+    for e in enemies:
+        dated = e.pop("_dated")
+        e["_datemap"] = dict(dated)
+        for idx, d in dated:
+            if d is not None and (idx not in content_first or d < content_first[idx]):
+                content_first[idx] = d
+        e["debut"], e["debutAt"], e["regions"], e["regionFrom"] = find_debut(dated, content_list, region_by_content)
+    fill_debut_from_series(enemies, content_list, region_by_content, content_first)
+    apply_debut_overrides(enemies, content_list, contents, tables, region_by_content, content_first)
+    for e in enemies:
+        del e["_datemap"]
+    for e in enemies:
+        if e["id"] in region_by_enemy:  # 地域は個別指定を優先
+            e["regions"], e["regionFrom"] = region_by_enemy[e["id"]], None
 
     version = ""
     vfile = base / "excel" / "data_version.txt"

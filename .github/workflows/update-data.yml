@@ -38,6 +38,8 @@ jobs:
           /jp/gamedata/excel/crisis_table.json
           /jp/gamedata/excel/crisis_v2_table.json
           /jp/gamedata/excel/campaign_table.json
+          /jp/gamedata/excel/handbook_info_table.json
+          /jp/gamedata/excel/character_table.json
           /jp/gamedata/excel/data_version.txt
           /jp/gamedata/levels/
           EOF
