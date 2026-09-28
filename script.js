@@ -465,7 +465,8 @@ function card(e) {
   const s = e._base;
   el.innerHTML = `
     <div class="card__top">
-      <div>
+      ${iconHtml(e, "card__icon")}
+      <div class="card__titles">
         <div class="card__index">${esc(e.index || "")}</div>
         <div class="card__name">${esc(e.name)}</div>
       </div>
@@ -504,8 +505,13 @@ function openDetail(e) {
 
   els.detailCard.innerHTML = `
     <button class="detail__close" id="detailClose" aria-label="閉じる">×</button>
-    <div class="detail__index">${esc(e.index || "")}</div>
-    <h2 class="detail__name">${esc(e.name)}</h2>
+    <div class="detail__head">
+      ${iconHtml(e, "detail__icon")}
+      <div>
+        <div class="detail__index">${esc(e.index || "")}</div>
+        <h2 class="detail__name">${esc(e.name)}</h2>
+      </div>
+    </div>
     <div class="detail__tags">
       <span class="rank-badge rank-badge--${rankClass(e.rank)}">${esc(e.rank)}</span>
       ${[...new Set([...e.races, e.motion, e.attackRange, ...e.damage].filter(Boolean))].map(t => `<span class="tag">${esc(t)}</span>`).join("")}
@@ -577,6 +583,17 @@ function goHome() {
   GROUPS.forEach(g => state.selected[g.key].clear());
   state.browseAll = false;
   update();
+}
+
+// ---------- 敵の画像 ----------
+
+// 画像はこのリポジトリには置かず、yuanyan3060/ArknightsGameResource（ゲームの素材を自動更新で
+// 公開しているリポジトリ）を jsDelivr 経由で読み込む。ファイル名は敵IDそのまま。
+const ICON_BASE = "https://cdn.jsdelivr.net/gh/yuanyan3060/ArknightsGameResource@main/enemy/";
+
+// 読み込めなかったときは枠に「画像なし」と出す（代わりの画像は使わず、異変に気づけるようにする）
+function iconHtml(e, cls) {
+  return `<span class="icon ${cls}"><img src="${ICON_BASE}${encodeURIComponent(e.id)}.png" alt="" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('icon--missing');this.remove()"></span>`;
 }
 
 // ---------- ユーティリティ ----------

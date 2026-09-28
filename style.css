@@ -457,7 +457,26 @@ button, input, select { font-family: inherit; }
 }
 .card:hover { border-color: var(--border-strong); border-left-color: var(--accent); background: #1E232B; }
 
-.card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.card__top { display: flex; align-items: center; gap: 10px; }
+.card__titles { flex: 1; min-width: 0; }
+.card__top .rank-badge { align-self: flex-start; }
+
+/* 敵の画像（外部から読み込む。読み込めないときは「画像なし」） */
+.icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.icon--missing::after { content: "画像なし"; font-size: 10px; color: var(--text-faint); text-align: center; line-height: 1.2; }
+.card__icon { width: 52px; height: 52px; }
+.detail__icon { width: 96px; height: 96px; }
+.detail__icon.icon--missing::after { font-size: 12px; }
 .card__index { font-family: var(--font-display); font-size: 12px; color: var(--text-faint); font-weight: 600; }
 .card__name { font-size: 15px; font-weight: 700; line-height: 1.35; }
 .card__meta { font-size: 12px; color: var(--text-secondary); }
@@ -543,6 +562,8 @@ button, input, select { font-family: inherit; }
 }
 .detail__close:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
+.detail__head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding-right: 40px; }
+.detail__head .detail__name { margin-bottom: 0; }
 .detail__index { font-family: var(--font-display); color: var(--text-faint); font-weight: 600; }
 .detail__name { font-size: 22px; font-weight: 700; margin: 2px 0 12px; line-height: 1.35; }
 

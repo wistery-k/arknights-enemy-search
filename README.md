@@ -50,6 +50,13 @@ scripts/build_data.py              ゲームデータ → enemies.json の変換
 - 一覧が24体以上のときは、上部に「さらに絞り込む」候補（初登場・ランク・種族・移動・攻撃属性のうち、まだ選んでいないもの）を件数付きで表示します。
 - 一覧の並び順は「初登場が新しい順」が既定です（図鑑順・ステータス順にも切り替え可）。
 
+## 敵の画像
+
+画像はこのリポジトリには置いていません。ゲームの素材を公開している
+[yuanyan3060/ArknightsGameResource](https://github.com/yuanyan3060/ArknightsGameResource) の `enemy/<敵ID>.png` を、
+jsDelivr（`https://cdn.jsdelivr.net/gh/yuanyan3060/ArknightsGameResource@main/enemy/`）経由で表示時に読み込みます。
+読み込めなかった画像は「画像なし」と表示します（代わりの取得先は使いません）。
+
 ## データの更新
 
 GitHub Actions が毎週月曜の朝に最新データで `data/enemies.json` を作り直し、変更があればコミットします。
