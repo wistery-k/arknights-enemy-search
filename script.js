@@ -9,7 +9,7 @@ const PAGE_SIZE = 60;
 // 絞り込みグループの定義。values(enemy) がその敵の持つ値の配列を返す。
 const GROUPS = [
   { key: "region",  title: "勢力 / 地域", values: e => e.regions },
-  { key: "content", title: "登場コンテンツ", values: e => e.appear.map(a => a[0]) },
+  { key: "content", title: "初登場コンテンツ", values: e => e.debut != null ? [e.debut] : [] },
   { key: "race",    title: "種族", values: e => e.races.length ? e.races : ["種族なし"] },
   { key: "rank",    title: "ランク", parent: "属性", values: e => [e.rank] },
   { key: "motion",  title: "移動", parent: "属性", values: e => [e.motion] },
@@ -216,7 +216,7 @@ function renderContentOptions(body, values, counts) {
 
   for (const cat of state.data.meta.categories) {
     const idxs = values.filter(i => contents[i].category === cat);
-    const visible = q ? idxs.filter(i => contents[i].name.toLowerCase().includes(q)) : idxs;
+    const visible = q ? idxs.filter(i => (contents[i].name + (contents[i].group || "")).toLowerCase().includes(q)) : idxs;
     if (!visible.length) continue;
 
     const catId = "cat:" + cat;
@@ -246,9 +246,42 @@ function renderContentOptions(body, values, counts) {
     if (!open) continue;
     const list = document.createElement("div");
     list.className = "filters__cat-list";
-    for (const i of visible) list.appendChild(optionRow("content", i, contents[i].name, counts.get(i) || 0));
+    const doneGroups = new Set();
+    for (const i of visible) {
+      const g = contents[i].group;
+      if (!g) { list.appendChild(optionRow("content", i, contents[i].name, counts.get(i) || 0)); continue; }
+      if (doneGroups.has(g)) continue;
+      doneGroups.add(g);
+      // 生息演算・協心競技などは見出しの下にまとめる
+      const members = idxs.filter(j => contents[j].group === g);
+      list.appendChild(contentGroupRow(g, members, counts));
+      const sub = document.createElement("div");
+      sub.className = "filters__cat-list filters__cat-list--sub";
+      for (const j of visible.filter(j => contents[j].group === g)) {
+        sub.appendChild(optionRow("content", j, contents[j].label || contents[j].name, counts.get(j) || 0));
+      }
+      list.appendChild(sub);
+    }
     body.appendChild(list);
   }
+}
+
+function contentGroupRow(name, members, counts) {
+  const sel = state.selected.content;
+  const nSel = members.filter(i => sel.has(i)).length;
+  const total = members.reduce((n, i) => n + (counts.get(i) || 0), 0);
+  const row = document.createElement("label");
+  row.className = "filter-option filter-option--group" + (nSel ? " filter-option--checked" : "") + (!total && !nSel ? " filter-option--empty" : "");
+  row.innerHTML = `<input type="checkbox"><span class="filter-option__label">${esc(name)}</span><span class="filter-option__count">${total}</span>`;
+  const box = row.querySelector("input");
+  box.checked = nSel === members.length;
+  box.indeterminate = nSel > 0 && nSel < members.length;
+  box.addEventListener("change", () => {
+    if (box.checked) members.forEach(i => sel.add(i));
+    else members.forEach(i => sel.delete(i));
+    update();
+  });
+  return row;
 }
 
 function renderChips() {
@@ -319,7 +352,7 @@ function openDetail(e) {
   const appearHtml = state.data.meta.categories.filter(c => byCat[c]).map(c => `
     <div class="detail__appear-cat">${esc(c)}</div>
     <ul class="detail__appear">
-      ${byCat[c].map(([name, codes, idx]) => `<li><span>${esc(name)}${idx === e.regionFrom ? `<span class="detail__debut">初登場</span>` : ""}</span>${codes.length ? `<span class="detail__codes">${esc(shortCodes(codes))}</span>` : ""}</li>`).join("")}
+      ${byCat[c].map(([name, codes, idx]) => `<li><span>${esc(name)}${idx === e.debut ? `<span class="detail__debut">初登場</span>` : ""}</span>${codes.length ? `<span class="detail__codes">${esc(shortCodes(codes))}</span>` : ""}</li>`).join("")}
     </ul>`).join("") || `<p class="detail__none">登場ステージのデータが見つかりませんでした。</p>`;
 
   els.detailCard.innerHTML = `
@@ -330,7 +363,8 @@ function openDetail(e) {
       <span class="rank-badge rank-badge--${rankClass(e.rank)}">${esc(e.rank)}</span>
       ${[...new Set([...e.races, e.motion, e.attackRange, ...e.damage].filter(Boolean))].map(t => `<span class="tag">${esc(t)}</span>`).join("")}
     </div>
-    ${e.regions.length ? `<p class="detail__region">勢力 / 地域: ${e.regions.map(r => `<span class="tag tag--region">${esc(r)}</span>`).join(" ")}${e.regionFrom != null ? `<span class="detail__region-from">初登場: ${esc(contents[e.regionFrom].name)}</span>` : ""}</p>` : ""}
+    ${e.debut != null ? `<p class="detail__region">初登場: <span>${esc(contents[e.debut].name)}</span></p>` : ""}
+    ${e.regions.length ? `<p class="detail__region">勢力 / 地域: ${e.regions.map(r => `<span class="tag tag--region">${esc(r)}</span>`).join(" ")}${e.regionFrom != null && e.regionFrom !== e.debut ? `<span class="detail__region-from">（${esc(contents[e.regionFrom].name)} の地域）</span>` : ""}</p>` : ""}
 
     ${e.abilities.length ? `<h3 class="detail__h">能力</h3><ul class="detail__abilities">${e.abilities.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
 

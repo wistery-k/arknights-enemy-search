@@ -224,6 +224,9 @@ button, input, select { font-family: inherit; }
   border-left: 1px solid var(--border-strong);
 }
 
+.filters__cat-list--sub { margin: 0 0 2px 13px; }
+.filter-option--group .filter-option__label { font-weight: 700; }
+
 .filter-option {
   display: flex;
   align-items: center;
@@ -465,7 +468,7 @@ button, input, select { font-family: inherit; }
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   font-size: 12.5px;
   color: var(--text-secondary);
 }

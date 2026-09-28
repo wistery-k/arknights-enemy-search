@@ -35,6 +35,9 @@ jobs:
           /jp/gamedata/excel/climb_tower_table.json
           /jp/gamedata/excel/sandbox_perm_table.json
           /jp/gamedata/excel/story_review_table.json
+          /jp/gamedata/excel/crisis_table.json
+          /jp/gamedata/excel/crisis_v2_table.json
+          /jp/gamedata/excel/campaign_table.json
           /jp/gamedata/excel/data_version.txt
           /jp/gamedata/levels/
           EOF
