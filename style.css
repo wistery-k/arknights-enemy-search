@@ -242,6 +242,19 @@ button, input, select { font-family: inherit; }
 .filter-option--checked .filter-option__count { color: var(--accent); }
 .filter-option--empty { opacity: 0.45; }
 
+.filters__toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.filters__toggle input { accent-color: var(--accent); width: 14px; height: 14px; margin: 0; }
+.filters__toggle:hover { color: var(--text-primary); }
+
 .filters__reset {
   width: 100%;
   margin-top: 16px;
@@ -626,6 +639,7 @@ button, input, select { font-family: inherit; }
   }
   .filters:not(.filters--open) .filters__inner,
   .filters:not(.filters--open) .filters__reset,
+  .filters:not(.filters--open) .filters__toggle,
   .filters:not(.filters--open) .filters__source { display: none; }
   .results { padding: 14px 16px 40px; }
   .results__toolbar { flex-direction: column-reverse; }

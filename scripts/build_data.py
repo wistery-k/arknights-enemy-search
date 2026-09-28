@@ -659,6 +659,8 @@ def main():
             "motion": MOTION.get(v(base_data.get("motion", {})), "地上"),
             "attackRange": APPLY_WAY.get(v(base_data.get("applyWay", {})), ""),
             "abilities": [a["text"] for a in hb.get("abilityList") or []],
+            # 能力の説明が「中立ユニット」で始まるもの（民間人・囚われた学生など）
+            "neutral": any((a.get("text") or "").startswith("中立ユニット") for a in hb.get("abilityList") or []),
             "description": hb.get("description") or "",
             "stats": build_stats(entry) if entry else [],
             "appear": apps,
