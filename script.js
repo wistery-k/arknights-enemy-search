@@ -58,7 +58,8 @@ async function init() {
   }
   const m = state.data.meta;
   els.source.textContent = `データ: ${m.source} / Ver.${m.dataVersion}`;
-  // 最初は登場コンテンツのカテゴリを閉じておく（件数が多いため）
+  // 最初は「初登場コンテンツ」以外の絞り込みを閉じておく。初登場コンテンツの中の各カテゴリも閉じる
+  for (const g of GROUPS) if (g.key !== "content") state.collapsed.add(g.parent ? "parent:" + g.parent : "group:" + g.key);
   for (const c of m.categories) state.collapsed.add("cat:" + c);
 
   bindEvents();
@@ -67,21 +68,17 @@ async function init() {
 
 // ---------- 公開バージョン ----------
 
-// 公開時に作られる build-info.json を読み、左下に更新日時を出す。
+// タイトルの下に更新日時とコミット番号を出す。
+// 1. GitHub Actions で公開したときに作られる build-info.json を読む
+// 2. 無ければ（ブランチから公開している場合など）GitHub API で main の最新コミットを調べる
 // 表示中のページより新しい版が公開されていたら、再読み込みを促す。
 async function loadBuildInfo() {
-  let info;
-  try {
-    const res = await fetch("build-info.json", { cache: "no-store" });
-    if (!res.ok) return null;
-    info = await res.json();
-  } catch {
-    return null; // ローカル確認時などは無い
-  }
+  const info = await fetchBuildInfo() || await fetchLatestCommit();
+  if (!info) return null; // ローカル確認時など
   const el = $("buildInfo");
   el.textContent = `更新 ${info.committedAt}（${info.commit}）`;
-  el.title = `公開: ${info.deployedAt}`;
-  el.classList.add("topbar__build");
+  if (info.deployedAt) el.title = `公開: ${info.deployedAt}`;
+  el.hidden = false;
 
   const loaded = document.querySelector('meta[name="build"]')?.content;
   if (loaded && loaded !== "dev" && loaded !== info.commit) {
@@ -90,6 +87,36 @@ async function loadBuildInfo() {
     $("reloadBtn").addEventListener("click", () => location.replace(`${location.pathname}?v=${info.commit}`));
   }
   return info;
+}
+
+async function fetchBuildInfo() {
+  try {
+    const res = await fetch("build-info.json", { cache: "no-store" });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchLatestCommit() {
+  // https://<owner>.github.io/<repo>/ のときだけ
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  const repo = location.pathname.split("/").filter(Boolean)[0];
+  if (!m || !repo) return null;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${m[1]}/${repo}/commits/main`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const c = await res.json();
+    return { commit: c.sha.slice(0, 7), committedAt: formatJst(c.commit.committer.date) };
+  } catch {
+    return null;
+  }
+}
+
+function formatJst(iso) {
+  const d = new Date(new Date(iso).getTime() + 9 * 3600 * 1000);
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
 // ---------- 絞り込み ----------
