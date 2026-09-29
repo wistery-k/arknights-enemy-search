@@ -737,7 +737,8 @@ def main():
         },
         "contents": [
             {k: x for k, x in (("category", c["category"]), ("name", c["name"]),
-                               ("label", c["label"] if c["label"] != c["name"] else None))
+                               ("label", c["label"] if c["label"] != c["name"] else None),
+                               ("chapter", c["order"] if c["category"] == "メインテーマ" else None))
              if x is not None}
             for c in content_list
         ],

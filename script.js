@@ -8,6 +8,9 @@ const PAGE_SIZE = 60;
 
 // 地域が設定されていない敵をまとめる値（タイルと絞り込みの選択肢に出す）
 const NO_REGION = "地域未設定";
+// 地域ではない分類。タイルと絞り込みの選択肢では、実在の地域の後ろにこの順で並べる
+const SPECIAL_REGIONS = ["コラボ", "統合戦略", "生息演算", NO_REGION];
+const regionRank = r => { const i = SPECIAL_REGIONS.indexOf(r); return i < 0 ? -1 : i; };
 
 // 絞り込みグループの定義。values(enemy) がその敵の持つ値の配列を返す。
 const GROUPS = [
@@ -171,8 +174,7 @@ function allValues(key) {
   } else if (key === "content") {
     vals.sort((a, b) => a - b); // 生成時にカテゴリ順・開催順に並べてある
   } else {
-    const last = v => v === "種族なし" || v === NO_REGION;
-    vals.sort((a, b) => last(a) - last(b) || counts.get(b) - counts.get(a));
+    vals.sort((a, b) => (a === "種族なし") - (b === "種族なし") || regionRank(a) - regionRank(b) || counts.get(b) - counts.get(a));
   }
   return vals;
 }
@@ -201,10 +203,43 @@ function isLanding() {
 
 // ---------- 最初の画面（地域のタイル） ----------
 
+// タイルに並べる名前の一覧。連続するメインテーマは「第九章～第十五章」にまとめ、
+// 協心競技・堅守協定・鋒矢突破は各回を並べずにカテゴリ名1つにまとめる
+const SERIES_CATEGORIES = new Set(["協心競技", "堅守協定", "鋒矢突破"]);
+
+function tileLabels(sources) {
+  const contents = state.data.contents;
+  const out = [];
+  const seenSeries = new Set();
+  let run = null; // 連続する章 [最初, 最後]
+  const flush = () => {
+    if (!run) return;
+    out.push(run[0] === run[1] ? tileLabel(run[0]) : `${tileLabel(run[0])}～${tileLabel(run[1])}`);
+    run = null;
+  };
+  for (const i of sources) {
+    const c = contents[i];
+    if (c.chapter != null) {
+      if (run && contents[run[1]].chapter + 1 === c.chapter) run[1] = i;
+      else { flush(); run = [i, i]; }
+      continue;
+    }
+    flush();
+    if (SERIES_CATEGORIES.has(c.category)) {
+      if (!seenSeries.has(c.category)) { seenSeries.add(c.category); out.push(c.category); }
+      continue;
+    }
+    out.push(tileLabel(i));
+  }
+  flush();
+  return out;
+}
+
 // タイル用の短い表示名。メインテーマは「第九章」のように章番号だけにする
 function tileLabel(i) {
   const c = state.data.contents[i];
-  return c.category === "メインテーマ" ? c.name.split(" ")[0] : contentLabel(i);
+  if (c.category === "メインテーマ") return c.name.split(" ")[0];
+  return c.label || c.name; // 生息演算：熱砂秘聞 → 熱砂秘聞
 }
 
 // コンテンツの表示名（生息演算などはカテゴリ名を付ける）
@@ -227,16 +262,16 @@ function renderLanding() {
     }
   }
   const frag = document.createDocumentFragment();
-  const tiles = [...byRegion].sort((a, b) => (a[0] === NO_REGION) - (b[0] === NO_REGION) || b[1].length - a[1].length);
+  const tiles = [...byRegion].sort((a, b) => regionRank(a[0]) - regionRank(b[0]) || b[1].length - a[1].length);
   for (const [region, list] of tiles) {
     // この地域の元になった章・イベントをすべて、メインテーマ → イベント → … の順（各カテゴリ内は開催順）で。
     // 地域未設定のタイルは、その敵たちの初登場コンテンツを並べる
     const from = e => region === NO_REGION ? e.debut : e.regionFrom;
     const sources = [...new Set(list.map(from).filter(i => i != null))].sort((a, b) => a - b);
-    const names = sources.map(tileLabel);
+    const names = tileLabels(sources);
     const tile = document.createElement("button");
     tile.type = "button";
-    tile.className = "tile" + (region === NO_REGION ? " tile--none" : "");
+    tile.className = "tile" + (regionRank(region) >= 0 ? " tile--special" : "");
     tile.innerHTML = `
       <span class="tile__head"><span class="tile__name">${esc(region)}</span><span class="tile__count">${list.length}体</span></span>
       <span class="tile__picks">${names.map(esc).join("、")}</span>`;

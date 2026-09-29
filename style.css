@@ -299,8 +299,8 @@ button, input, select { font-family: inherit; }
   flex-direction: column;
   gap: 6px;
 }
-.tile--none { border-left-color: var(--border-strong); }
-.tile--none .tile__count { color: var(--text-secondary); }
+.tile--special { border-left-color: var(--border-strong); }
+.tile--special .tile__count { color: var(--text-secondary); }
 .tile:hover { border-color: var(--border-strong); border-left-color: var(--accent); background: #1E232B; }
 
 .tile__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
